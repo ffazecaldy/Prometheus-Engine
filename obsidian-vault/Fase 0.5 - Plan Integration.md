@@ -1,5 +1,5 @@
 ---
-tags: [prometheus-engine, fase-05, plan, clarification]
+tags: [prometheus-engine, fase-05, plan, scaffolding]
 aliases: [Clarification Interview]
 ---
 
@@ -38,11 +38,20 @@ Il piano contiene:
 - Dipendenze tra task
 - Test strategy
 
+## 0.5c — Scaffolding Adattivo
+
+Vedi [[Phase 0.5c - Structural Alignment]] per i dettagli.
+
+**Regole chiave:**
+- **Scan First:** rileva convenzioni esistenti prima di creare cartelle
+- **Architettura proporzionata:** Tier 1-2 → piatta; Tier 3-4 → modulare (models/, services/, api/, tests/)
+- **Greenfield fallback:** progetto nuovo → crea struttura minima per il Tier
+
 ## Flusso Plan → Engine
 
 ```mermaid
 graph LR
-    A[Clarification] --> B[Piano .md]
+    A[Clarification + Scan] --> B[Piano .md]
     B --> C[Decomposizione]
     C --> D[Dispatch subagenti]
     D --> E[Streaming Gather]
@@ -53,5 +62,6 @@ graph LR
 
 ## Collegamenti
 - [[Fase 0 - Autonomous Loop Engine]] — Fase precedente
+- [[Phase 0.5c - Structural Alignment]] — Scaffolding adattivo
 - [[Fase 1 - Massive Decomposition]] — Ogni task del piano → subagente
 - [[Pitfalls]] — ❌ Saltare clarification interview (Tier 3+)
