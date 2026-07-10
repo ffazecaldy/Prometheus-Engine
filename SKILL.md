@@ -1,7 +1,7 @@
 ---
 name: prometheus-engine
-description: "Always-on autonomous agentic loop: prompt enhancement → deep research → massive scatter-gather (up to 100 subagents) → streaming quality gate (immediate retry on arrival) → self-learning iteration → loop until goal achieved with zero human intervention. Auto-activates on EVERY programming-mode prompt."
-version: 5.0.0
+description: "Always-on autonomous agentic loop: prompt enhancement → deep research → massive scatter-gather (up to 100 subagents) → streaming quality gate (immediate retry on arrival) → self-learning iteration. Autonomous in execution, collaborative in mutation. Auto-activates on EVERY programming-mode prompt."
+version: 5.2.0
 author: Prometheus Engine Community
 repository: https://github.com/ffazecaldy/Prometheus-Engine
 tags: [prometheus, engine, auto, workflow, multi-agent, quality, research, iteration, scatter-gather, streaming-gather, self-learning, autonomous-loop, meta-scaling, quick-start]
@@ -11,7 +11,7 @@ tags: [prometheus, engine, auto, workflow, multi-agent, quality, research, itera
 
 ## Philosophy
 
-**I don't follow a workflow. I AM the loop.**
+**I don't follow a workflow. I AM the loop. Autonomous in execution, collaborative in mutation.**
 
 This skill transforms me into an autonomous agentic system that:
 
@@ -19,7 +19,22 @@ This skill transforms me into an autonomous agentic system that:
 2. **Executes massively in parallel** — up to 100 subagents per batch, BUT ONLY WHEN NEEDED
 3. **Evaluates and retries instantly** — streaming gather, no batching delays
 4. **Learns and adapts** — saves patterns, improves next iteration
-5. **Keeps going until done** — zero human intervention required
+5. **Keeps going until done** — autonomous in execution, collaborative in mutation
+
+---
+
+### ⚖️ REGOLA DI PRECEDENZA — Conflitti tra policy
+
+Se due sezioni descrivono policy alternative per lo stesso momento del flusso, **vince la più restrittiva** (sicurezza > autonomia). Ordine di precedenza:
+
+1. ⚖️ **Regola di Precedenza** (questa sezione) — sempre attiva
+2. 🛡️ **Guardrail (Phase 4f)** — proteggono il sistema da se stesso
+3. 🪜 **Escalation Ladder (Phase 7)** — l'utente decide su gap sotto soglia
+4. 🧠 **Context Protection (Phase 3e)** — previene overflow/saturazione
+5. ✨ **Quality Gate (Phase 3a)** — valuta e ritenta
+6. 📡 **Scatter (Phase 2a)** — dispatch parallelo
+
+**Esempio concreto:** se Phase 3a dice "accetta task sotto soglia" ma Phase 7 dice "escala all'utente" → vince Phase 7. Se Phase 2a dice "dispatcha 50 subagenti in streaming" ma Phase 3e dice "max 20-25 in-flight" → vince Phase 3e.
 
 ### ⚠️ REGOLA FONDAMENTALE — Dynamic Subagent Allocation
 
@@ -642,7 +657,12 @@ Modulo chiamante: app/router.py (implementato da subagente A)
 --- FINE CONTRATTO ---
 ```
 
-**Perché è critico:** subagenti paralleli che implementano interfacce comunicanti senza contratto condiviso producono invariabilmente mismatch — un subagente usa `await build_prompt(...)`, l'altro definisce `def build_prompt(...)`; un subagente passa parametri posizionali, l'altro si aspetta keyword. Il contratto elimina il 90% di questi bug di integrazione.
+**Perché è critico:** subagenti paralleli che implementano interfacce comunicanti senza contratto condiviso producono invariabilmente mismatch — un subagente usa `await build_prompt(...)`, l'altro definisce `def build_prompt(...)`; un subagente passa parametri posizionali, l'altro si aspetta keyword. Il contratto elimina il 90% di questi bug di integrazione **quando la decomposizione è nota prima del dispatch**.
+
+**⚠️ Limite con dispatch dinamico:** poiché Phase 2a dispatcha in streaming mentre Phase 1a decompone dinamicamente, un contratto d'interfaccia per un modulo del Batch 2 potrebbe arrivare dopo che il Batch 1 è già stato scritto. In questo caso:
+- **Se il contratto è noto prima del dispatch di entrambi:** includilo in entrambi i context → zero mismatch
+- **Se il Batch 1 è già partito:** Batch 2 DEVE adattarsi alle firme già scritte da Batch 1 (leggi il file prodotto), non il contrario
+- **Solo in Tier 3+ con pianificazione statica (Phase 0.5):** i contratti sono tutti noti in anticipo → vale la garanzia del 90%
 
 ### 1d — Quality Criteria Dinamici
 
@@ -703,6 +723,8 @@ Invece di fare un unico `delegate_task(tasks=[...])` e aspettare TUTTI i risulta
 
 **Vantaggio:** non c'è mai un "tempo morto" tra batch. I retry partono mentre gli altri task girano ancora.
 
+**⚠️ Limite di safety:** lo streaming dispatch è il default, MA ogni batch DEVE passare `can_dispatch()` (Phase 3e) prima di partire. Se il context budget è a rischio, il batch viene ridotto automaticamente — NON sospende lo streaming, ma lancia batch più piccoli fino a quando il budget non si libera. La regola "20-25 in-flight" di Phase 3e è un **warning threshold**, non un hard stop. In caso di conflitto: Phase 3e vince su Phase 2a (Regola di Precedenza).
+
 ### 2b — Subagent Prompt Template (auto-consapevole)
 
 Ogni subagent sa che fa parte di un loop più grande:
@@ -744,13 +766,15 @@ Prima di dispatchare, verifico che il batch sia valido:
 
 ```
 PRE-FLIGHT CHECKLIST:
-□ Ogni task ha file diverso? (nessun conflitto)
+□ Ogni task ha file NON CONDIVISO? I singoli task non devono toccare file condivisi (router principale, __init__.py, config, requirements.txt).
+   └─ 🌉 **Assembly Task**: i file condivisi sono modificati SOLO da un task post-batch dedicato, dopo che tutti i task individuali sono verificati
 □ Ogni task ha quality criteria specifici?
 □ Il carico è bilanciato? (nessun task > 2× media)
 □ Il numero di task <= subagents_available?
 □ Ho template di retry pronti per fallimenti rapidi?
 □ Ho salvato i criteri di successo per il final report?
 □ **Firme interfacce**: se due task producono moduli che si chiamano tra loro, ho incluso il contratto delle funzioni (nomi, parametri, sincrono/async) in ENTRAMBI i context?
+□ **Assembly task pianificato?** Ho identificato i file condivisi che devono essere aggiornati dopo il batch e allocato un assembly task?
 ```
 
 ### 2d — Esempio di Dispatch Reale
@@ -830,9 +854,9 @@ while goal_not_achieved AND iteration < max_iterations:
     │   └─ tasks_in_flight.append(X)
     │
     ├─ if score < threshold AND iteration >= max_iterations:
-    │   ├─ ⚠️ Escalo: "Task X non converge dopo {max_iter} iter"
-    │   ├─ tasks_completed.append(X)  # lo accetto con gap documentato
-    │   └─ salvo in self_lessons per analisi future
+    │   ├─ ⚠️ Raggiunto tetto di sicurezza. Vai a Phase 7 (Escalation Ladder).
+    │   ├─ NON accettare automaticamente: l'utente decide se accettare, skippare o fix manuale.
+    │   └─ Salva in self_lessons per analisi future
     │
     ├─ UPDATE: ricalcola first_pass_rate, avg_quality
     │
@@ -848,11 +872,10 @@ L'utente vuole commit+push dopo ogni modifica riuscita. Il loop lo codifica cos�
 ```
 GIT CHECKPOINT RULES:
 1. Dopo che un task PASSA il quality gate (score >= threshold) e i file sono validati:
-   └─ git add <specific_files_of_task>
-   └─ git commit -m "<type>: <descrizione task in italiano>"
-   └─ git push
+   └─ Se i file del task sono ESCLUSIVI (non condivisi) → git add + commit + push immediato
+   └─ Se i file del task includono file CONDIVISI → ATTENDI: il commit dei file condivisi avviene SOLO nell'assembly task post-batch
 2. NON commitare file di task ancora in-flight (conflitti potenziali)
-3. Se due task completati modificano file adiacenti senza overlap:
+3. Se due task completati modificano file ESCLUSIVI (nessun overlap con file condivisi):
    └─ Commit separati, push in sequenza
 4. Commit message in italiano, formato conventional commits:
    └─ feat: aggiungi modello Restaurant
@@ -861,6 +884,10 @@ GIT CHECKPOINT RULES:
 5. Se git push fallisce (rete, auth):
    └─ Retry singolo, poi continua il loop (commit resta locale)
    └─ Segnala nel final report: "N commit non pushati"
+6. 🌉 ASSEMBLY TASK: dopo che TUTTI i task del batch sono verificati, un assembly task dedicato:
+   └─ Modifica i file condivisi (router, __init__.py, config, requirements.txt) per integrare i nuovi moduli
+   └─ Fa commit + push dei file condivisi
+   └─ Questo è l'unico task autorizzato a toccare file condivisi
 ```
 
 **Perché nel loop e non alla fine:** commit granulari dopo ogni task passato = rollback possibile per singolo task se un task successivo lo rompe. Commit unico finale = all-or-nothing.
@@ -888,22 +915,26 @@ LINEA DEL TEMPO (minuti:secondi):
 TEMPO TOTALE: 1 min 30s (invece di ~3 min con batch-retry)
 ```
 
-### 3c — Adaptive Threshold Tuning
+### 3c — Adaptive Threshold Tuning (solo per il prossimo batch)
 
-Se vedo che troppi task falliscono, non aspetto la fine — **aggiusto la decomposizione al volo**:
+Se vedo che troppi task falliscono, **aggiusto la decomposizione per il batch successivo** (NON per i task già dispatchati):
 
 ```
 MONITOR:
 if first_pass_rate (after 25% of tasks) < 60%:
     └─ "Decomposizione troppo grossolana per questi task"
-    └─ Per i prossimi task: raddoppia la granularità (split ogni task in 2)
+    └─ Per il PROSSIMO batch: raddoppia la granularità (split ogni task in 2)
+    └─ I task già in volo completano con granularità originale
     └─ Salva lezione: "Task di tipo X richiedono decomposizione più fine"
 
 if first_pass_rate (after 25% of tasks) > 90%:
     └─ "Decomposizione troppo fine, overhead eccessivo"
-    └─ Per i prossimi task: merge adiacenti
+    └─ Per il PROSSIMO batch: merge adiacenti
+    └─ I task già in volo completano con granularità originale
     └─ Salva lezione: "Task di tipo X possono essere aggregati"
 ```
+
+> **⚠️ Regola importante:** NON cambiare mai granularità ai task già dispatchati. Rischierebbe sovrapposizioni e conflitti con task "vecchio stile" ancora in esecuzione.
 
 ### 3d — Validazione File Fisici
 
@@ -944,7 +975,7 @@ CONTEXT BUDGET RULES:
    ├─ Ondata 1: task 1-20 → raccogli risultati → processa → libera context
    ├─ Ondata 2: task 21-40 → raccogli → processa → libera context
    └─ Ondata 3: task 41-N → ...
-   └─ Mai più di 20-25 subagenti in-flight simultanei se i summary sono >1000 token
+   └─ ⚠️ Warning threshold: oltre 20-25 subagenti in-flight simultanei con summary >1000 token rischia saturazione. Riduci batch se can_dispatch() segnala rischio (Phase 2a + Regola di Precedenza).
 
 3. Summary compression proattiva:
    ├─ Per Tier 2: summary <500 token (3-5 righe)
@@ -1275,7 +1306,7 @@ HUMAN CHECKPOINT per skill operations:
   └─ skill_manage(action="write_file") → come patch, notifica dopo
 ```
 
-**Il self-improvement è autonomo nel DETECT (cosa imparare), ma collaborativo nel ACT (cosa modificare).** Il modello identifica pattern e lezioni da solo, ma le modifiche strutturali alle skill richiedono consenso umano.
+**Il self-improvement è autonomo nel DETECT (cosa imparare), ma collaborativo nel ACT (cosa modificare).** Il modello identifica pattern e lezioni da solo, ma le modifiche strutturali alle skill richiedono consenso umano. Questo è coerente con la filosofia della skill: **"Autonomous in execution, collaborative in mutation"** — il loop decide, esegue e ritenta senza fermarsi, ma le mutazioni permanenti al sistema (skill, guardrail, flusso) passano dall'utente.
 
 #### Guardrail 8 — Session Memory Flush Cap
 
@@ -1370,12 +1401,16 @@ v3 feedback: "Mancano 3 edge case specifici: (1) email duplicata → 409,
               Aggiungi test per ognuno. Il resto del codice è ok (score 6→8)."
 ```
 
-### 6c — Limite di Retry Intelligente
+### 6c — Limite di Retry Intelligente (convergenza osservata + tetto di sicurezza)
 
-Non uso più max_iterazioni fisse. Uso **convergenza osservata**:
+La regola primaria è la **convergenza osservata**. Il contatore `max_iterations` esiste solo come **tetto di sicurezza** (per evitare loop infiniti), non come regola decisionale:
+
 - Se dopo retry quality_score migliorato di >= 2 punti → continua (sta convergendo)
 - Se migliorato < 2 punti → cambia strategia (split task, hint più specifici)
 - Se PEGGIORATO → ferma retry, riparti da zero con task più piccolo
+- Se `iteration >= max_iterations` E il delta è < 2 → **escala a Phase 7** (l'utente decide)
+
+> **Coerenza con Phase 3a:** quando 3a rileva `iteration >= max_iterations`, NON accetta automaticamente ma attiva l'Escalation Ladder. In caso di conflitto tra questa regola e Phase 3a, vince la Regola di Precedenza → escalation all'utente.
 
 ---
 
