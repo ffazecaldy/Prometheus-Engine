@@ -1,7 +1,7 @@
 ---
 name: prometheus-engine
 description: "Always-on autonomous agentic loop: prompt enhancement → deep research → massive scatter-gather (up to 100 subagents) → streaming quality gate (immediate retry on arrival) → self-learning iteration. Autonomous in execution, collaborative in mutation. Auto-activates on EVERY programming-mode prompt."
-version: 5.5.1
+version: 5.5.2
 author: Prometheus Engine Community
 repository: https://github.com/ffazecaldy/Prometheus-Engine
 tags: [prometheus, engine, auto, workflow, multi-agent, quality, research, iteration, scatter-gather, streaming-gather, self-learning, autonomous-loop, meta-scaling, quick-start]
@@ -535,8 +535,9 @@ STRUCTURAL ALIGNMENT RULES:
    │   └─ config/ → configurazione centralizzata
 
 3. GREENFIELD FALLBACK (progetto nuovo, zero convenzioni):
-   ├─ Tier 1-2: crea main.py + tests/ (basta)
-   └─ Tier 3-4: crea la struttura modulare sopra (models/, services/, api/, tests/)
+   ├─ Isola il progetto: se la cartella corrente è vuota o non ha un .git/, crea una sotto-cartella con il nome del progetto (slug dal goal) e inizializza il repository lì. Non scrivere mai nella root se è condivisa con altri file.
+   ├─ Tier 1-2: crea main.py + tests/ nella sotto-cartella (basta)
+   └─ Tier 3-4: crea la struttura modulare sopra (models/, services/, api/, tests/) nella sotto-cartella
 ```
 
 > **Coerenza con Phase 0.5b:** lo scan della struttura esistente è già richiesto da 0.5b ("Esplora il codebase"). Qui diventa **vincolante** per le decisioni di cartella.
@@ -913,10 +914,13 @@ while goal_not_achieved AND iteration < max_iterations:
     │   └─ continue (aspetto prossimo risultato)
     │
     ├─ if score < threshold AND iteration < max_iterations:
-    │   ├─ ❌ Prepara retry per X IMMEDIATAMENTE
-    │   ├─ Feedback: "Hai fatto {gaps}. Correggi: {fix_hint}"
-    │   ├─ dispatch_retry(X)  # parte SUBITO, non aspetta altri
-    │   └─ tasks_in_flight.append(X)
+    │   ├─ if retry_count >= 4:
+    │   │   └─ ⚠️ ESCALATION IMMEDIATA: Salta a Phase 7 (Escalation Ladder) per questo task
+    │   ├─ else:
+    │   │   ├─ ❌ Prepara retry per X IMMEDIATAMENTE
+    │   │   ├─ Feedback: "Hai fatto {gaps}. Correggi: {fix_hint}"
+    │   │   ├─ dispatch_retry(X)  # parte SUBITO, non aspetta altri
+    │   │   └─ tasks_in_flight.append(X)
     │
     ├─ if score < threshold AND iteration >= max_iterations:
     │   ├─ ⚠️ Raggiunto tetto di sicurezza. Vai a Phase 7 (Escalation Ladder).
@@ -1070,10 +1074,13 @@ NON eseguire se il task richiede:
 SECURITY AUTO CHECK (eseguito dopo Phase 3d e 3d-bis, prima del quality gate):
 
 1. ZERO HARDCODED SECRETS (CRITICO — blocca il task):
+   ├─ ESCLUSIONE: NON eseguire questo check su file in /tests/, /test/, /mocks/ o che iniziano con test_
+   ├─ BYPASS: se la riga contiene il commento # nosec, salta quel match specifico
    ├─ Regex: \b(api_key|password|secret|token|api_secret)\s*=\s*['\"][^'\"]{8,}
    │          SENZA os.getenv / env / process.env nelle 3 righe successive
    ├─ Esempi bloccati: "API_KEY = 'sk-abc123...'" , "password = 'admin'"
    ├─ Esempi OK:       "API_KEY = os.getenv('API_KEY')" , "password = get_secret()"
+   ├─ Esempi OK (test): "test_password = 'mock_password_123'  # nosec" , file in /tests/
    └─ Se trovato → ❌ RETRY: "Sposta la credenziale in variabile d'ambiente"
 
 2. SQL INJECTION RISK (ALTO — blocca il task):
@@ -1967,6 +1974,20 @@ Ultimo checkpoint: turno {turn}
 ⚠️ La qualità sta degradando — semplifica i prossimi task.
 ```
 
+### Interrupt & Detail Recall (On-Demand)
+
+Se durante i turni avanzati devi modificare o fare refactoring di moduli scritti nei turni iniziali, NON affidarti solo al `context_summary`:
+
+```
+DETAIL RECALL RULES:
+  ├─ Se devi toccare file scritti >8 turni fa:
+  │   ├─ Usa read_file per leggere lo stato su ~/.hermes/sessions/<id>_<turno_originario>.json
+  │   ├─ Recupera le decisioni architetturali originali (campo 'decisions' nel JSON)
+  │   └─ Leggi il file sorgente originale (non compresso) per capire la struttura
+  ├─ Questo evita disallineamenti architetturali causati dalla compressione del contesto
+  └─ Costo: 1-2 read_file extra, ~500 token (trascurabile vs. costo di un refactor sbagliato)
+```
+
 ### Pre-Flight Augmentation (per Fase 2c)
 
 Aggiungi al Pre-Flight Checklist:
@@ -2014,16 +2035,24 @@ Dopo modifiche, elimina TUTTI i `__pycache__` e `.pyc`. Usa `python -B` per disa
 ### ❌ Server old process zombie — codice nuovo ignorato
 Quando modifichi il backend e riavvii, un vecchio processo può restare in ascolto sulla porta e servire codice vecchio. Il nuovo processo crasha con `[Errno 10048] address already in use`.
 
-**Procedura di kill verificato:**
-1. Trova il PID reale: `netstat -ano | grep :PORTA | grep LISTEN`
-2. Kill: `taskkill -F -PID <PID>` (Windows) o `kill -9 <PID>` (Linux/Mac)
-3. **VERIFICA** che la porta sia libera: `netstat -ano | grep :PORTA` → deve tornare vuoto
+**Procedura di kill verificato (cross-platform):**
+1. Trova il PID reale:
+   ├─ Windows (PowerShell): `netstat -ano | findstr :PORTA | findstr LISTENING`
+   ├─ Windows (CMD): `netstat -ano | findstr :PORTA`
+   └─ Linux/Mac: `lsof -t -i:PORTA` o `netstat -tuln | grep :PORTA`
+2. Kill:
+   ├─ Windows: `taskkill -F /PID <PID>`
+   └─ Linux/Mac: `kill -9 <PID>`
+3. **VERIFICA** che la porta sia libera:
+   ├─ Windows: `netstat -ano | findstr :PORTA` → deve tornare vuoto
+   └─ Linux/Mac: `lsof -i :PORTA` → deve tornare vuoto
 4. Se un altro processo riappare, ripeti dal passo 1 (zombie multipli possibili)
 5. Avvia il server e verifica che serva codice FRESCO — non solo che risponda:
    `curl -s endpoint | python -c "import sys,json; d=json.load(sys.stdin); print('nuovo_campo' in d)"` — se il nuovo campo non c'è, il codice non è fresco
 
 **Caso Windows (.pyc timestamps):** Su Windows i file `.pyc` possono avere timestamp più recenti dei `.py` (git checkout, filesystem caching). Python usa il `.pyc` senza ricompilare anche se il `.py` è stato modificato. Soluzione:
-   - `find . -type d -name __pycache__ -exec rm -rf {} +`
+   ├─ Windows (PowerShell): `Get-ChildItem -Path . -Filter __pycache__ -Recurse -Directory | Remove-Item -Force -Recurse`
+   ├─ Linux/Mac: `find . -type d -name __pycache__ -exec rm -rf {} +`
    - Oppure usa `python -B` durante lo sviluppo per disabilitare la cache
    - In alternativa, avvia il server con `--reload` (uvicorn) che forza il refresh
 

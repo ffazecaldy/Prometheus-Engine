@@ -593,23 +593,28 @@ def quality_check(
             checks.append({"file": filepath, "check": "syntax", "passed": syntax_ok})
 
         # Check 5: Security AUTO — hardcoded secrets + SQL injection (Phase 3d-ter)
+        # Esclude file di test e mocks dal check hardcoded secrets
+        _is_test_file = bool(re.search(r'(/tests?/|/mocks?/|^test_|_test\.py$)', filepath))
         if filepath.endswith((".py", ".js", ".ts", ".jsx", ".tsx")):
             try:
                 with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
                     content = f.read()
-                # Hardcoded secrets
-                has_secret = bool(re.search(
-                    r"\b(api_key|password|secret|token|api_secret)\s*=\s*['\"][^'\"]{8,}",
-                    content, re.IGNORECASE
-                ))
-                if has_secret:
-                    # Check if getenv/env/process.env is nearby (within 3 lines)
-                    lines = content.split("\n")
-                    for i, line in enumerate(lines):
-                        if re.search(r"\b(api_key|password|secret|token)\s*=\s*['\"]", line, re.IGNORECASE):
-                            nearby = "\n".join(lines[max(0,i-1):min(len(lines),i+4)])
-                            if not re.search(r"(getenv|os\.environ|process\.env\.)", nearby):
-                                failures.append(f"{filepath}: L{i+1} — secret hardcodato, usa variabile d'ambiente")
+                # Hardcoded secrets (skip if test file or # nosec comment on same line)
+                if not _is_test_file:
+                    has_secret = bool(re.search(
+                        r"\b(api_key|password|secret|token|api_secret)\s*=\s*['\"][^'\"]{8,}",
+                        content, re.IGNORECASE
+                    ))
+                    if has_secret:
+                        lines = content.split("\n")
+                        for i, line in enumerate(lines):
+                            if re.search(r"\b(api_key|password|secret|token)\s*=\s*['\"]", line, re.IGNORECASE):
+                                # Skip if # nosec comment on this line
+                                if re.search(r"#\s*nosec", line):
+                                    continue
+                                nearby = "\n".join(lines[max(0,i-1):min(len(lines),i+4)])
+                                if not re.search(r"(getenv|os\.environ|process\.env\.)", nearby):
+                                    failures.append(f"{filepath}: L{i+1} — secret hardcodato, usa variabile d'ambiente")
                 # SQL injection
                 has_raw_sql = bool(re.search(
                     r"""(f['\"]\s*(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE)\b
