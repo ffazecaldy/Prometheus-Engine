@@ -1,7 +1,7 @@
 ---
 name: prometheus-engine
 description: "Always-on autonomous agentic loop: prompt enhancement → deep research → massive scatter-gather (up to 100 subagents) → streaming quality gate (immediate retry on arrival) → self-learning iteration. Autonomous in execution, collaborative in mutation. Auto-activates on EVERY programming-mode prompt."
-version: 5.4.0
+version: 5.5.0
 author: Prometheus Engine Community
 repository: https://github.com/ffazecaldy/Prometheus-Engine
 tags: [prometheus, engine, auto, workflow, multi-agent, quality, research, iteration, scatter-gather, streaming-gather, self-learning, autonomous-loop, meta-scaling, quick-start]
@@ -507,6 +507,40 @@ Il piano NON sostituisce il loop — lo **alimenta**:
 
 **Regola d'oro:** Il piano è una guida, non una gabbia. Se durante lo streaming gather emerge che un task è più complesso del previsto, decomponilo ulteriormente al volo (Phase 3c — adaptive threshold tuning).
 
+### 0.5c — Structural Alignment (Scaffolding Adattivo)
+
+Prima di assegnare path ai file, l'agente DEVE allinearsi alla struttura esistente o crearne una proporzionata al Tier:
+
+```
+STRUCTURAL ALIGNMENT RULES:
+
+1. SCAN FIRST — Prima di creare cartelle:
+   ├─ search_files per rilevare convenzioni già esistenti nel repo
+   │   └─ Es: se esiste app/routers/ → nuovo codice API va lì
+   │   └─ Es: se esiste src/components/ → nuovo frontend va lì
+   ├─ MAI creare una cartella parallela se ne esiste già una con lo stesso scopo
+   └─ Se il progetto è nuovo (greenfield, nessuna convenzione) → applica Regola 2
+
+2. ARCHITETTURA PROPORZIONATA AL TIER:
+   ├─ Tier 1-2 (Bassa/Media): Struttura piatta o minimale
+   │   ├─ main.py, utils.py, test_main.py
+   │   ├─ NIENTE layer di astrazione inutili (no Repository Pattern per uno script)
+   │   └─ NIENTE cartelle vuote o pre-create "per il futuro"
+   │
+   ├─ Tier 3-4 (Alta/Estrema): Separazione modulare dei livelli
+   │   ├─ models/ → persistenza e schema dati
+   │   ├─ services/ → business logic
+   │   ├─ api/ o routers/ → esposizione HTTP
+   │   ├─ tests/ → test suite
+   │   └─ config/ → configurazione centralizzata
+
+3. GREENFIELD FALLBACK (progetto nuovo, zero convenzioni):
+   ├─ Tier 1-2: crea main.py + tests/ (basta)
+   └─ Tier 3-4: crea la struttura modulare sopra (models/, services/, api/, tests/)
+```
+
+> **Coerenza con Phase 0.5b:** lo scan della struttura esistente è già richiesto da 0.5b ("Esplora il codebase"). Qui diventa **vincolante** per le decisioni di cartella.
+
 ---
 
 ## Phase 1 — Massive Parallel Decomposition
@@ -699,6 +733,34 @@ def generate_criteria(task_type, tier, context):
         })
     return base_criteria
 ```
+
+### 1d-bis — Clean Code Standards (per Tier)
+
+**Non applicare a Tier 1.** I fix rapidi non hanno bisogno di controlli di architettura. Per Tier 2-4, i seguenti criteri diventano **vincolanti** nei quality criteria dei subagenti:
+
+```
+CLEAN CODE STANDARDS (iniettati nei quality criteria):
+
+1. TYPE HINTS & DOCSTRINGS (Tier 2-4, obbligatorio):
+   ├─ Ogni funzione deve avere type hints espliciti (parametri e ritorno)
+   ├─ Ogni funzione pubblica deve avere una docstring concisa
+   │   └─ Formato: [Cosa fa]. Input: [parametri]. Output: [ritorno]. Raises: [eccezioni].
+   └─ Verificabile automaticamente: fase di validazione controlla presenza type hints
+
+2. SINGLE RESPONSIBILITY (Tier 3-4, via Actor-Critic Phase 3a-ter):
+   ├─ Una funzione/classe fa UNA cosa sola
+   ├─ Se una route API fa DB query + business logic + email → ❌ BOCCIATO
+   ├─ Applicato SOLO dopo 3+ retry (non per ogni task — costoso)
+   └─ Verificato dall'Actor-Critic, non da regex automatica
+
+3. DRY — DON'T REPEAT YOURSELF (Tier 3-4, via Assembly Task):
+   ├─ Se due subagenti producono codice duplicato, l'Assembly Task lo estrae
+   │   in un modulo condiviso (utils/ o config/)
+   ├─ Applicato POST-BATCH, non durante il dispatch individuale
+   └─ Verificato dall'Assembly Task (Phase 3a-bis punto 6)
+```
+
+> **Coerenza con Phase 3a-ter:** SRP richiede giudizio umano-level, quindi non è un check automatico. L'Actor-Critic lo applica solo quando un task ha già dimostrato di essere problematico (3+ retry), non sul percorso felice.
 
 ---
 
@@ -995,6 +1057,35 @@ NON eseguire se il task richiede:
 ```
 
 > **⚠️ Per task NON sandboxabili:** carica la skill `verification-strategies` e usa i suoi metodi (import check, type stub, curl endpoint). Questo è **obbligatorio** per Tier 2-4 — non più "se non esiste test suite".
+
+### 3d-ter — Security Shield AUTO (regex-based, per tutti i Tier)
+
+**Applicabile a TUTTI i task di codice, anche Tier 1.** Verificabile automaticamente via regex. Se fallisce → retry immediato con feedback specifico.
+
+```
+SECURITY AUTO CHECK (eseguito dopo Phase 3d e 3d-bis, prima del quality gate):
+
+1. ZERO HARDCODED SECRETS (CRITICO — blocca il task):
+   ├─ Regex: \b(api_key|password|secret|token|api_secret)\s*=\s*['\"][^'\"]{8,}
+   │          SENZA os.getenv / env / process.env nelle 3 righe successive
+   ├─ Esempi bloccati: "API_KEY = 'sk-abc123...'" , "password = 'admin'"
+   ├─ Esempi OK:       "API_KEY = os.getenv('API_KEY')" , "password = get_secret()"
+   └─ Se trovato → ❌ RETRY: "Sposta la credenziale in variabile d'ambiente"
+
+2. SQL INJECTION RISK (ALTO — blocca il task):
+   ├─ Regex: (f['\"]SELECT|f['\"]INSERT|\.format\(.*SELECT|\+ .*SELECT|execute\(.*\+)
+   ├─ Esempi bloccati: f"SELECT * FROM users WHERE id={user_id}"
+   │                   "SELECT * FROM " + table_name
+   ├─ Esempi OK:       cursor.execute("SELECT * FROM users WHERE id=?", (user_id,))
+   │                   session.query(User).filter(User.id == user_id)  [ORM]
+   └─ Se trovato → ❌ RETRY: "Usa query parametrizzate o ORM, mai f-string SQL"
+
+3. PLACEHOLDER SECRETS (avviso — non blocca):
+   ├─ Regex: \b(API_KEY|TOKEN|SECRET)\s*=\s*(['\"]\s*['\"]|None|''|\"\")\s*#\s*TODO
+   └─ Se trovato → ⚠️ WARNING nel log (non blocca, potrebbe essere intenzionale)
+```
+
+> **Coerenza con quality_check.py:** queste regex vanno aggiunte al modulo `prometheus_engine.py` → `quality_check()` come check aggiuntivi. Il file `scripts/prometheus_engine.py` va aggiornato per eseguire questi controlli dopo il syntax check esistente.
 
 ### 3e — Context Window Protection (CRITICO per Tier 3-4)
 
@@ -1417,6 +1508,33 @@ SELF-LEARNING LOG (nel final report di ogni sessione):
 
 ---
 
+#### Guardrail 11 — Security Shield (no vulnerabilities by design)
+
+**SCOPO:** impedire che codice vulnerabile entri in produzione. Opera su due livelli: AUTO (bloccante, via regex in Phase 3d-ter) e REVIEW (Actor-Critic, per Tier 3-4).
+
+```
+SECURITY SHIELD RULES:
+
+LIVELLO AUTO — Verificabile automaticamente (Phase 3d-ter, TUTTI i Tier):
+  ├─ 1. ZERO HARDCODED SECRETS: API key, token, password mai in chiaro nel codice
+  ├─ 2. NO RAW SQL: query parametrizzate o ORM, mai f-string/concatenazione
+  └─ 3. PLACEHOLDER WARNING: segnala (non blocca) placeholder come API_KEY = '' # TODO
+
+LIVELLO REVIEW — Richiede giudizio (Phase 3a-ter Actor-Critic, SOLO Tier 3-4):
+  ├─ 4. INPUT VALIDATION: ogni input esterno validato (Pydantic/Zod/decorator)
+  │   └─ Il Critic verifica che le route API abbiano schema di validazione
+  ├─ 5. ERROR INFO LEAKAGE: nessuno stack trace o dettaglio interno nelle risposte API
+  │   └─ Il Critic verifica try/except con messaggi generici + log interni
+  └─ 6. SAFE DEPENDENCIES: nessun package oscuro o non versionato
+      └─ Il Critic verifica che requirements.txt/package.json abbia versioni pinnate (==, non >=)
+```
+
+> **Coerenza con Phase 3d-ter:** il livello AUTO è già implementato lì con regex. Questo guardrail ne formalizza l'obbligatorietà e aggiunge il livello REVIEW per Tier 3-4.
+
+> **Coerenza con Phase 3a-ter (Actor-Critic):** le regole REVIEW (4-6) vengono applicate dall'Actor-Critic quando un task ha 3+ retry o quando è un task Tier 3-4 di tipo API/auth/security. Non sono bloccanti automatici perché richiedono comprensione semantica.
+
+---
+
 ### 4g — Dynamic Knowledge Expansion (post 3+ retry) — Local/Global Split
 
 **Trigger:** un task ha richiesto **3 o più retry** per passare il quality gate. Questo indica che c'è conoscenza da catturare — un'API deprecata, un pattern che non funziona più, un gap di contesto.
@@ -1723,6 +1841,9 @@ Aggiungi al Pre-Flight Checklist (Phase 2c):
    ├─ GLOBAL: Ho letto ~/.hermes/references/dynamic-patterns.md e FILTRATO per le tecnologie del goal?
    └─ Entrambi iniettati come extra_criteria nei subagenti? (LOCAL sempre, GLOBAL solo tecnologie matchate)
 □ Ho un piano di code review post-batch?
+□ **Security Shield attivo?** Ho attivato il check AUTO (Phase 3d-ter) per hardcoded secrets e SQL injection su TUTTI i task di codice?
+□ **Clean Code attivo?** Per Tier 2-4: type hints obbligatori? Per Tier 3-4: SRP via Actor-Critic pianificato?
+□ **Struttura allineata?** Ho fatto Scan First (Phase 0.5c) prima di assegnare path ai file? L'architettura è proporzionata al Tier?
 □ Ho fatto il recall dei pattern precedenti (Phase 4b)?
 □ Se Tier 3+: il piano (Phase 0.5) è stato scritto e letto?
 □ Se deploy previsto: pre-deploy checklist (deploy-release Phase 1) verificata?
@@ -1928,7 +2049,7 @@ Il self-learning è potente ma **pericoloso senza guardrail**. Rischi concreti:
 - **Skill proliferation**: 50 skill simili che si sovrappongono → context overload
 - **Project contamination**: lezioni del progetto A contaminate il progetto B
 
-**Soluzione:** i 10 guardrail in Phase 4f sono NON-OPZIONALI. Leggili, applicali, non saltarli. Il self-learning è autonomo nel DETECT (cosa imparare), ma collaborativo nel ACT (modifiche strutturali richiedono consenso umano).
+**Soluzione:** i guardrail in Phase 4f + Guardrail 11 (Security Shield) sono NON-OPZIONALI. Leggili, applicali, non saltarli. Il self-learning è autonomo nel DETECT (cosa imparare), ma collaborativo nel ACT (modifiche strutturali richiedono consenso umano).
 ### ❌ Spreco di subagenti — 100 per tutto
 
 `max_concurrent_children: 100` è un **tetto massimo**, non un default. Dispatchare 100 subagenti per un task che ne richiede 3 è uno spreco di token e denaro (100× costo API). Il Tier system regola dinamicamente quanti subagenti usare:
