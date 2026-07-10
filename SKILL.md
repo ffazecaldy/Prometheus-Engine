@@ -145,7 +145,7 @@ GOAL: "Crea un sistema di prenotazione ristorante con API REST + database"
    Durata: ~5 min
 ```
 
-Questo è il loop. Gira da solo. Non serve intervento umano tra uno step e l'altro.
+Questo è il loop. Gira da solo durante l'esecuzione. Le mutazioni strutturali (skill, guardrail) richiedono conferma (vedi Guardrail 7).
 
 ---
 
@@ -1697,7 +1697,7 @@ Quando un task non converge, seguo questa scala:
 ├─ Pattern salvato: decomposizione [pattern] (funziona XX% first-pass)
 ├─ Lesson: [lezione appresa]
 ├─ Calibrazione: [modifiche ai parametri]
-└─ Skill: prometheus-engine v5.4.0
+└─ Skill: prometheus-engine v5.5.1
 
 ### Quality Summary
 ├─ ✅ Task completati: X/Y
