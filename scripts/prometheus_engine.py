@@ -90,12 +90,23 @@ def detect_band(prompt: str) -> str:
     p = prompt.lower().strip()
     words = p.split()
 
+    # FALLA 1: input vuoto/triviale → default "media" (non "bassa")
+    if not words or all(not w.isalnum() or w.isdigit() for w in words):
+        return "media"
+
     # Conta indicatori per ogni banda
     scores = {"bassa": 0, "media": 0, "alta": 0, "estrema": 0}
 
     # --- BASSA ---
     if re.search(r"\b(fix|typo|cambia|correggi|rinomina|aggiusta|cambia colore|rename)\b", p):
         scores["bassa"] += 3
+    # "fix" + strutturale non è più puramente bassa (es. "fix api endpoint")
+    if re.search(r"\b(fix|correggi)\b", p):
+        has_structural_for_fix = bool(re.search(
+            r"\b(crea|implementa|aggiungi|sistema|modulo|endpoint|api|component|model|service|test|auth|database|full.?stack|refactoring|dashboard|admin|pipeline)\b", p
+        ))
+        if has_structural_for_fix:
+            scores["bassa"] = max(0, scores.get("bassa", 0) - 2)
     # Frase molto breve (1-3 parole) senza verbi strutturali → quasi certamente bassa
     has_structural = bool(re.search(
         r"\b(crea|implementa|aggiungi|sistema|modulo|endpoint|api|component|model|service|test|auth|database|full.?stack|refactoring|dashboard|admin|pipeline)\b", p
@@ -108,7 +119,8 @@ def detect_band(prompt: str) -> str:
     if re.search(r"\b(non lo so|non saprei|boh|mah)\b", p):
         scores["media"] += 4  # override: generico → media
     # "prometheus attivo" → media (attivazione skill)
-    if re.search(r"\bprometheus\b", p) and not has_structural:
+    # Gestisci anche typo comune "promethus"
+    if re.search(r"\bprometh(e|u)s\b", p) and not has_structural:
         scores["media"] += 3
 
     # --- MEDIA ---
@@ -144,7 +156,10 @@ def detect_band(prompt: str) -> str:
         scores["estrema"] += 4
     if re.search(r"\b(backend.*frontend|frontend.*backend|deploy|docker|production|real.time|real-time|notifiche?|notification)\b", p):
         scores["estrema"] += 2
-    if re.search(r"\b(50\+|100\+|tanti file|multi.?layer|prenotazione|ristorante)\b", p):
+    # 50+/100+ richiedono solo \b all'inizio (+ non è \w, niente \b dopo)
+    if re.search(r"\b50\+|100\+|tanti file|multi.?layer", p):
+        scores["estrema"] += 2
+    if re.search(r"\bprenotazione|ristorante\b", p):
         scores["estrema"] += 2
     # Estrema senza keyword esplicite → keyword multiple alte + contesto
     if (re.search(r"\b(sistema|platform|app)\b", p) and
@@ -275,9 +290,10 @@ def fine_grained_decompose(
     Returns:
         Lista di dict: [{"id": str, "description": str, "files": [str], "criteria": dict}]
     """
-    if iteration == 0:
-        # Iterazione 1: decomposizione aggressiva
-        target_count = max(1, int(available_subagents * 0.8))
+    safe_iteration = max(0, iteration)
+    if safe_iteration == 0 or (safe_iteration > 0 and not gaps):
+        # Iterazione 1: decomposizione aggressiva (o retry senza gap = riparti)
+        target_count = max(1, int(available_subagents * 0.8)) if safe_iteration == 0 else max(2, available_subagents)
     else:
         # Iterazioni successive: solo gap, più fine-grained
         if not gaps:
@@ -298,11 +314,12 @@ def fine_grained_decompose(
         }
         tasks.append(task)
 
-    # Se ci sono più slot che entità, decomponi ulteriormente
+    # Se ci sono più slot che entità, decomponi ulteriormente (con ID univoci)
+    split_counter = [0]
     while len(tasks) < target_count and tasks:
         # Split dell'ultimo task in 2
         last = tasks.pop()
-        sub_tasks = _split_task(last)
+        sub_tasks = _split_task(last, split_counter)
         tasks.extend(sub_tasks)
 
     return tasks[:target_count]
@@ -346,11 +363,22 @@ def _extract_entities(goal: str) -> list[dict]:
     return entities
 
 
-def _split_task(task: dict) -> list[dict]:
-    """Dividi un task in 2 sub-task."""
+def _split_task(task: dict, counter: Optional[list] = None) -> list[dict]:
+    """Dividi un task in 2 sub-task con ID univoci.
+
+    Args:
+        task: Task da splittare.
+        counter: Lista mutabile con un int (contatore globale) per ID univoci.
+
+    Returns:
+        Lista di 2 task splittati.
+    """
+    if counter is None:
+        counter = [0]
+    counter[0] += 1
     return [
-        {**task, "id": task["id"] + "a", "description": task["description"] + " (parte 1)"},
-        {**task, "id": task["id"] + "b", "description": task["description"] + " (parte 2)"},
+        {**task, "id": f"task_{task['id'].split('_')[1]}_{counter[0]}a", "description": task["description"] + " (parte 1)"},
+        {**task, "id": f"task_{task['id'].split('_')[1]}_{counter[0]}b", "description": task["description"] + " (parte 2)"},
     ]
 
 
@@ -482,6 +510,16 @@ def can_dispatch(
 #  QUALITY CHECK — Enforcement automatico Phase 9
 # ═══════════════════════════════════════════════════════════════════════
 
+def _is_binary_file(filepath: str) -> bool:
+    """Rileva se un file è binario controllando la presenza di byte nulli."""
+    try:
+        with open(filepath, "rb") as f:
+            chunk = f.read(8192)
+        return b"\x00" in chunk
+    except Exception:
+        return False
+
+
 def quality_check(
     files_created: list[str],
     task_type: str = "generic",
@@ -517,6 +555,13 @@ def quality_check(
         checks.append({"file": filepath, "check": "not_empty", "passed": not_empty})
         if not not_empty:
             failures.append(f"{filepath}: file vuoto")
+            continue
+
+        # Check 2b: non binario (rileva byte nulli o troppi byte non-UTF8)
+        is_binary = _is_binary_file(filepath)
+        checks.append({"file": filepath, "check": "not_binary", "passed": not is_binary})
+        if is_binary:
+            failures.append(f"{filepath}: file binario o non testuale")
             continue
 
         # Check 3: no stub/TODO/pass (se richiesto)
