@@ -1135,7 +1135,7 @@ skill_manage(
 All'inizio di ogni sessione di coding, prima di Phase 0, esegui un **recall rapido**:
 
 ```
-RECALL SEQUENCE (30 secondi, ~500 token):
+RECALL SEQUENCE (30 secondi, ~1000 token, include Phase 4g):
 
 1. Memory injection (automatica, zero cost extra)
    └─ Le entry PE[...] sono già nel context
@@ -1149,6 +1149,11 @@ RECALL SEQUENCE (30 secondi, ~500 token):
 3. Skill list check (1 skills_list call)
    └─ Esiste già skill "pattern-{goal_type}"?
    └─ Se sì → caricala con skill_view (struttura ottimizzata)
+
+4. Dynamic Knowledge check (1-2 read_file calls — Phase 4g):
+   ├─ Leggi ./.hermes/local-patterns.md (se esiste nel progetto corrente, ~200 token)
+   ├─ Leggi ~/.hermes/references/dynamic-patterns.md e filtra per tecnologie del goal (~300 token)
+   └─ Inietta le regole rilevanti come extra_criteria nei subagenti
 ```
 
 **Risparmio token complessivo:**
@@ -1356,8 +1361,8 @@ HUMAN CHECKPOINT per skill operations:
 
 **Il self-improvement è autonomo nel DETECT (cosa imparare), ma collaborativo nel ACT (cosa modificare).** Il modello identifica pattern e lezioni da solo, ma le modifiche strutturali alle skill richiedono consenso umano. Questo è coerente con la filosofia della skill: **"Autonomous in execution, collaborative in mutation"** — il loop decide, esegue e ritenta senza fermarsi, ma le mutazioni permanenti al sistema (skill, guardrail, flusso) passano dall'utente.
 
-**Eccezione — Dynamic Knowledge Expansion (Phase 4g):** scrivere in `references/dynamic-patterns.md` è **conoscenza catturata, non comportamento modificato**. Questo file NON richiede checkpoint umano. La regola pratica:
-- `references/dynamic-patterns.md` firmato `[Auto]` → autonomo ✅ (documentazione di scoperte)
+**Eccezione — Dynamic Knowledge Expansion (Phase 4g):** scrivere nei file di dynamic knowledge è **conoscenza catturata, non comportamento modificato**. Questi file NON richiedono checkpoint umano. La regola pratica:
+- `~/.hermes/references/dynamic-patterns.md` e `./.hermes/local-patterns.md` firmati `[Auto]` → autonomo ✅ (documentazione di scoperte)
 - `SKILL.md` o `references/*` non `[Auto]` → serve OK umano ⚠️ (cambia comportamento)
 - Creare/modificare skill → serve OK umano 🛑 (cambia il sistema)
 
@@ -1401,6 +1406,7 @@ Ogni operazione di self-learning deve essere tracciabile:
 SELF-LEARNING LOG (nel final report di ogni sessione):
   ├─ Memory entries salvate: N (di cui N sostituite)
   ├─ Pattern cache: aggiornata/non aggiornata (ragione)
+  ├─ Dynamic patterns (Phase 4g): global N nuove, local N nuove
   ├─ Skill patched: sì/no (quale, cosa, perché)
   ├─ Skill create: sì/no (quale, con conferma utente?)
   ├─ Lesson validation: N validate, N scartate (ragione scarto)
@@ -1559,7 +1565,7 @@ Quando un task non converge, seguo questa scala:
 ├─ Pattern salvato: decomposizione [pattern] (funziona XX% first-pass)
 ├─ Lesson: [lezione appresa]
 ├─ Calibrazione: [modifiche ai parametri]
-└─ Skill: prometheus-engine v4.0.0
+└─ Skill: prometheus-engine v5.4.0
 
 ### Quality Summary
 ├─ ✅ Task completati: X/Y
