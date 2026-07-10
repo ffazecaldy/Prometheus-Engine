@@ -1,7 +1,7 @@
 ---
 name: prometheus-engine
 description: "Always-on autonomous agentic loop: prompt enhancement → deep research → massive scatter-gather (up to 100 subagents) → streaming quality gate (immediate retry on arrival) → self-learning iteration. Autonomous in execution, collaborative in mutation. Auto-activates on EVERY programming-mode prompt."
-version: 5.2.0
+version: 5.3.0
 author: Prometheus Engine Community
 repository: https://github.com/ffazecaldy/Prometheus-Engine
 tags: [prometheus, engine, auto, workflow, multi-agent, quality, research, iteration, scatter-gather, streaming-gather, self-learning, autonomous-loop, meta-scaling, quick-start]
@@ -863,6 +863,30 @@ while goal_not_achieved AND iteration < max_iterations:
     └─ if ALL tasks accounted for (completed + in_flight == total):
         └─ if tasks_completed.size == total:
             └─ 🎉 GOAL ACHIEVED → final report
+
+### 3a-ter — Actor-Critic Escalation Trigger (solo per task problematici)
+
+**Non è un check per ogni task.** Si attiva solo quando un task ha accumulato **3+ retry** senza convergere. Serve a distinguere tra "task difficile" e "problema strutturale":
+
+```
+ACTOR-CRITIC CHECK (solo se retry_count >= 3 per lo stesso task):
+1. Analizza il pattern di fallimento:
+   ├─ Stesso errore ogni retry? → problema di contesto (istruzioni ambigue)
+   ├─ Errori diversi ogni retry? → problema di esecuzione (subagente instabile)
+   ├─ Peggioramento progressivo? → circular learning (Guardrail 2)
+   └─ Stallo (stesso score, stesso gap)? → task mal specificato
+
+2. Azione basata sul pattern:
+   ├─ Contesto ambiguo → riscrivi il task con istruzioni più precise
+   ├─ Esecuzione instabile → riduci la complessità (split in 2 micro-task)
+   ├─ Circular learning → ferma retry, segnala a Guardrail 2
+   └─ Task mal specificato → escalation immediata a Phase 7
+
+3. Limite: 1 SOLO tentativo di Actor-Critic per task.
+   Se fallisce ancora → escalation Phase 7 (senza altri retry).
+```
+
+> **Coerenza:** questo meccanismo NON sostituisce il quality gate (che resta per ogni task). È un trigger di secondo livello che scatta solo dopo 3+ retry, colmando il vuoto tra "ritento" e "escalo".
 ```
 
 ### 3a-bis — Git Commit+Push Policy (OBBLIGATORIA)
@@ -936,19 +960,41 @@ if first_pass_rate (after 25% of tasks) > 90%:
 
 > **⚠️ Regola importante:** NON cambiare mai granularità ai task già dispatchati. Rischierebbe sovrapposizioni e conflitti con task "vecchio stile" ancora in esecuzione.
 
-### 3d — Validazione File Fisici
+### 3d — Validazione File Fisici (OBBLIGATORIA per Tier 2-4)
 
-Ogni risultato viene validato fisicamente:
+**Non è più opzionale.** Ogni task che produce codice DEVE passare questa validazione prima di essere marcato completato. Task di documentazione/config → skip.
 
 ```
-VALIDATE RESULT:
-1. read_file(task.files_created[0]) — esiste? → se no, ❌ fail aggiuntivo
-2. grep -n "TODO\\|pass\\|stub" task.files_created — codice morto?
-3. python -c "from task.module import ..." — sintassi ok?
-4. wc -l task.files_created — file non vuoto?
-
-Se validazione fisica fallisce → fail immediato (anche se score era alto)
+VALIDATE RESULT (obbligatorio per task di codice):
+1. read_file(task.files_created[0]) — esiste? → se no, ❌ fail immediato
+2. grep -n "TODO\\|pass\\|stub" task.files_created — codice morto? → ❌
+3. python -c "from task.module import ..." — sintassi ok? → ❌
+4. wc -l task.files_created — file non vuoto? → ❌
 ```
+
+Se validazione fisica fallisce → **retry immediato con feedback specifico** (non fail silenzioso).
+
+### 3d-bis — Execution Reality Check (per script standalone e test)
+
+Per task di tipo **script standalone, funzione pura, o test unitario**, esegui il codice in sandbox:
+
+```
+EXECUTION CHECK (solo per task sandboxabili):
+1. Esegui pytest test_file.py o python script.py in sandbox
+2. Se stderr vuoto → ✅ passa
+3. Se stderr ha errori:
+   ├─ Usa l'errore ESATTO come feedback del retry
+   ├─ Max 3 tentativi di fix basati su stderr
+   └─ Se ancora fallisce → escalation Phase 7
+
+NON eseguire se il task richiede:
+├─ Connessioni DB/rete esterne
+├─ File system reale (usa tmpfile)
+├─ Token/auth/API keys
+└─ Server in ascolto
+```
+
+> **⚠️ Per task NON sandboxabili:** carica la skill `verification-strategies` e usa i suoi metodi (import check, type stub, curl endpoint). Questo è **obbligatorio** per Tier 2-4 — non più "se non esiste test suite".
 
 ### 3e — Context Window Protection (CRITICO per Tier 3-4)
 
@@ -1308,6 +1354,11 @@ HUMAN CHECKPOINT per skill operations:
 
 **Il self-improvement è autonomo nel DETECT (cosa imparare), ma collaborativo nel ACT (cosa modificare).** Il modello identifica pattern e lezioni da solo, ma le modifiche strutturali alle skill richiedono consenso umano. Questo è coerente con la filosofia della skill: **"Autonomous in execution, collaborative in mutation"** — il loop decide, esegue e ritenta senza fermarsi, ma le mutazioni permanenti al sistema (skill, guardrail, flusso) passano dall'utente.
 
+**Eccezione — Dynamic Knowledge Expansion (Phase 4g):** scrivere in `references/dynamic-patterns.md` è **conoscenza catturata, non comportamento modificato**. Questo file NON richiede checkpoint umano. La regola pratica:
+- `references/dynamic-patterns.md` firmato `[Auto]` → autonomo ✅ (documentazione di scoperte)
+- `SKILL.md` o `references/*` non `[Auto]` → serve OK umano ⚠️ (cambia comportamento)
+- Creare/modificare skill → serve OK umano 🛑 (cambia il sistema)
+
 #### Guardrail 8 — Session Memory Flush Cap
 
 Per evitare che una singola sessione lunga accumuli troppi aggiornamenti di memoria:
@@ -1355,6 +1406,41 @@ SELF-LEARNING LOG (nel final report di ogni sessione):
 ```
 
 **L'utente deve sempre sapere cosa è stato imparato, cosa è stato modificato, e cosa è stato bloccato.**
+
+---
+
+### 4g — Dynamic Knowledge Expansion (post 3+ retry)
+
+**Trigger:** un task ha richiesto **3 o più retry** per passare il quality gate. Questo indica che c'è conoscenza da catturare — un'API deprecata, un pattern che non funziona più, un gap di contesto.
+
+```
+DYNAMIC KNOWLEDGE EXPANSION:
+1. Estrai la regola risolutiva:
+   ├─ Cosa è fallito? (API, pattern, sintassi, libreria)
+   ├─ Perché è fallito? (deprecazione, breaking change, gap contesto)
+   └─ Qual è la soluzione? (il pattern specifico che ha funzionato)
+
+2. Scrivi/aggiorna references/dynamic-patterns.md:
+   ├─ Formato: ## [Tecnologia] — [Problema] (es. "## React 19 — use() sostituisce useContext per Promise")
+   ├─ Contenuto: causa + soluzione + esempio di codice
+   ├─ Timestamp + conteggio occorrenze
+   └─ Prefisso [Auto] per distinguere dai reference manuali
+
+3. Carica automaticamente nei task futuri (Tier 2-4):
+   ├─ All'inizio di Phase 1 (decomposizione), leggi dynamic-patterns.md
+   ├─ Se esistono regole rilevanti per il goal_type corrente, iniettale nel context dei subagenti
+   └─ Nessun overhead aggiuntivo: 1 read_file all'inizio del batch, <500 token
+
+4. Guardrail di proliferazione (ereditato da Guardrail 5):
+   ├─ Max 50 entry in dynamic-patterns.md
+   ├─ Entry più vecchie con <2 occorrenze → archiviate in dynamic-patterns.archive.md
+   ├─ Se un goal_type ha 3+ entry con lo stesso pattern → proponi all'utente di creare una skill dedicata (Guardrail 4)
+   └─ Formato sempre [Auto] — NON modificare SKILL.md senza consenso (Guardrail 7)
+```
+
+> **Coerenza con Guardrail 7:** `dynamic-patterns.md` è **conoscenza catturata**, non comportamento modificato. Scrivere in questo file NON richiede checkpoint umano perché non altera il flusso del loop. La distinzione è: SKILL.md = comportamento → serve OK; `references/*.md` = documentazione → autonomo. Le entry sono firmate `[Auto]` per distinguerle dai reference creati manualmente.
+
+> **Integrazione con Phase 1 (decomposizione):** prima di decomporre, leggi `references/dynamic-patterns.md`. Se contiene regole per le tecnologie menzionate nel goal, iniettale come `extra_criteria` nei task relativi. Esempio: goal contiene "React" → controlla se dynamic-patterns ha entry React → inietta "In React 19, usa X invece di Y" nel context del subagente.
 
 ---
 
@@ -1601,7 +1687,13 @@ POST-DEPLOY MONITORING (primi 30 min):
 Aggiungi al Pre-Flight Checklist (Phase 2c):
 ```
 □ Task che producono codice hanno quality criteria TDD?
-□ So quale skill di verification usire se pytest non disponibile?
+□ **Verification obbligatoria:** per Tier 2-4, ho pianificato come validare ogni task?
+   ├─ Script standalone → pytest / python sandbox (Phase 3d-bis)
+   ├─ API endpoint → curl test dopo deploy (verification-strategies)
+   ├─ Modulo con dipendenze → import check + type stub (verification-strategies)
+   └─ Documentazione/config → syntax-only check
+□ So quale skill di verification usare se pytest non disponibile?
+□ **Dynamic patterns caricati?** Ho letto references/dynamic-patterns.md e iniettato regole rilevanti nei context dei subagenti (Phase 4g)?
 □ Ho un piano di code review post-batch?
 □ Ho fatto il recall dei pattern precedenti (Phase 4b)?
 □ Se Tier 3+: il piano (Phase 0.5) è stato scritto e letto?
