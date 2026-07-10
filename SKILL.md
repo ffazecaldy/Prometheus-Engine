@@ -1,7 +1,7 @@
 ---
 name: prometheus-engine
 description: "Always-on autonomous agentic loop: prompt enhancement → deep research → massive scatter-gather (up to 100 subagents) → streaming quality gate (immediate retry on arrival) → self-learning iteration. Autonomous in execution, collaborative in mutation. Auto-activates on EVERY programming-mode prompt."
-version: 5.5.0
+version: 5.5.1
 author: Prometheus Engine Community
 repository: https://github.com/ffazecaldy/Prometheus-Engine
 tags: [prometheus, engine, auto, workflow, multi-agent, quality, research, iteration, scatter-gather, streaming-gather, self-learning, autonomous-loop, meta-scaling, quick-start]
@@ -899,7 +899,10 @@ Questa è la fase che rende v3 veramente autonoma. **Non aspetto. Processo subit
 while goal_not_achieved AND iteration < max_iterations:
     ┌─ Arriva risultato da subagente X
     ├─ PARSE: estrai status, quality_score, gaps, files
-    ├─ VALIDATE: i files_created esistono davvero? (stat/check)
+    ├─ VALIDATE (Phase 3d): i files_created esistono sul disco? (stat/check)
+    ├─ EXECUTION (Phase 3d-bis): codice compila/gira in sandbox senza errori? (se sandboxabile)
+    ├─ SECURITY AUTO (Phase 3d-ter): hardcoded secrets? raw SQL injection?
+    │   └─ Se uno dei check sopra fallisce → retry immediato (non aspettare lo score)
     │
     ├─ if score >= threshold:
     │   ├─ ✅ tasks_completed.append(X)
@@ -971,8 +974,9 @@ GIT CHECKPOINT RULES:
    └─ Retry singolo, poi continua il loop (commit resta locale)
    └─ Segnala nel final report: "N commit non pushati"
 6. 🌉 ASSEMBLY TASK: dopo che TUTTI i task del batch sono verificati, un assembly task dedicato:
-   └─ Modifica i file condivisi (router, __init__.py, config, requirements.txt) per integrare i nuovi moduli
-   └─ Fa commit + push dei file condivisi
+   ├─ Modifica i file condivisi (router, __init__.py, config, requirements.txt) per integrare i nuovi moduli
+   ├─ 🔍 DRY CHECK (Tier 3-4): scansiona i moduli prodotti in parallelo per rilevare helper o logiche duplicate. Estrai le duplicazioni in un file condiviso (es. utils/helpers.py o config/constants.py)
+   ├─ Fa commit + push dei file condivisi (inclusi i nuovi file utils estratti dal DRY check)
    └─ Questo è l'unico task autorizzato a toccare file condivisi
 ```
 
@@ -1424,12 +1428,22 @@ Le lezioni di un progetto NON devono contaminare progetti diversi:
 
 ```
 PROJECT ISOLATION RULES:
-  ├─ Le lezioni tecniche specifiche (es. "FastAPI route ordering") sono GLOBALI — valide ovunque
-  ├─ Le lezioni architetturali (es. "usa SQLite raw queries") sono PROGETTO-SPECIFICHE
-  │   └─ Marca con prefisso: PE[api_crud|PolimarketWeather|T3]...
-  │   └─ Durante recall, matcha solo se il progetto corrente è lo stesso
-  ├─ Le lezioni di stile UI sono PROGETTO-SPECIFICHE (ogni progetto ha il suo design)
-  └─ Se il progetto corrente non matcha nessun entry di progetto → non usare quelle entry
+
+  ├─ LIVELLO 1 — Memory Store (LLM Context, ~200 char per entry):
+  │   ├─ Le lezioni di architettura/struttura sono PROGETTO-SPECIFICHE
+  │   ├─ Marca con prefisso: PE[goal_type|NomeProgetto|Tier]...
+  │   ├─ Durante recall, ignora le entry che non corrispondono al progetto corrente
+  │   └─ Esempio: PE[api_crud|PolimarketWeather|T3] FPR=84%...
+
+  ├─ LIVELLO 2 — Dynamic Knowledge Files (su disco, Phase 4g):
+  │   ├─ Le lezioni di stile, architettura e convenzioni fisiche sono LOCALI
+  │   ├─ Scrivile in ./.hermes/local-patterns.md nel repository corrente
+  │   ├─ Le lezioni di tecnologia pura (API, framework) sono GLOBALI
+  │   └─ Scrivile in ~/.hermes/references/dynamic-patterns.md
+
+  ├─ "When in doubt, LOCAL": nel dubbio, isola la lezione nel progetto corrente (sia Livello 1 che 2)
+
+  └─ PRIORITÀ nel recall: il file locale ./.hermes/local-patterns.md ha la precedenza assoluta sul globale ~/.hermes/references/dynamic-patterns.md
 ```
 
 **Implementazione pratica:** nel salvare una memory entry, includi il nome del progetto (dal cwd o dal git remote) se la lezione è progetto-specifica. Nel recall, filtra per progetto prima di applicare.
