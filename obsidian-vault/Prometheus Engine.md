@@ -38,7 +38,7 @@ graph TD
 - [[Filosofia e Core Loop]] — Philosophy, il loop `while goal_not_achieved`
 - [[Tier System]] — Come calcolare il tier (1-4) e il Dynamic Subagent Allocation
 - [[Configurazione]] — Prerequisiti, environment, hermes config
-- [[Preferenze Utente]] — Boschi404: italiano, commit+push, 1 decimale, etc.
+- [[Preferenze Utente]] — Personalizza lingua, commit policy, decimali, test live
 - [[Pitfalls]] — Tutti i fallimenti critici da evitare
 
 ### 🔄 Fasi del Loop

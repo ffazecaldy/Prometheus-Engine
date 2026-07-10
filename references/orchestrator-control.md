@@ -171,7 +171,7 @@ def max_depth_for_tier(tier, familiarity):
 ```
 --- CONTEXT SNAPSHOT (iniettato in ogni subagente) ---
 PROGETTO: {nome} | STACK: {tech_stack}
-UTENTE: Boschi404 | LINGUA: italiano
+UTENTE: [tuo-nome] | LINGUA: [tua-lingua]
 CONVENZIONI: {1 riga di regole critiche}
 GOAL GLOBALE: {1 riga di cosa stiamo costruendo}
 TUO RUOLO: {orchestrator|leaf|micro-worker}
@@ -182,7 +182,7 @@ TUO TASK: {descrizione specifica}
 **Esempio reale (<150 token):**
 ```
 PROGETTO: PolimarketWeather | STACK: FastAPI+React+Ollama
-UTENTE: Boschi404 | LINGUA: italiano
+UTENTE: [tuo-nome] | LINGUA: [tua-lingua]
 CONVENZIONI: temperature float 1 decimale, commit+push dopo ogni task
 GOAL: modulo autenticazione JWT per API meteo
 TUO RUOLO: micro-worker
@@ -343,7 +343,7 @@ Il leaf che decide di splittare deve:
 ```
 --- CONTEXT SNAPSHOT (B3) ---
 PROGETTO: {nome} | STACK: {tech_stack}
-UTENTE: Boschi404 | LINGUA: italiano
+UTENTE: [tuo-nome] | LINGUA: [tua-lingua]
 CONVENZIONI: {1 riga di regole critiche}
 GOAL GLOBALE: {1 riga}
 TUO RUOLO: micro-worker
@@ -437,7 +437,7 @@ delegate_task(
 ```
 --- CONTEXT SNAPSHOT (B3) ---
 PROGETTO: {nome} | STACK: {tech_stack}
-UTENTE: Boschi404 | LINGUA: italiano
+UTENTE: [tuo-nome] | LINGUA: [tua-lingua]
 CONVENZIONI: {regole critiche}
 GOAL GLOBALE: {goal}
 TUO RUOLO: orchestrator

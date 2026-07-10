@@ -31,7 +31,7 @@ while goal_not_achieved:
 Se FPR < 60% dopo 25% task → raddoppia granularità.
 Se FPR > 90% → merge task adiacenti.
 
-## Git Commit+Push Policy (Boschi404)
+## Git Commit+Push Policy
 
 - commit granulare dopo ogni task passato
 - push immediato

@@ -841,7 +841,7 @@ while goal_not_achieved AND iteration < max_iterations:
             └─ 🎉 GOAL ACHIEVED → final report
 ```
 
-### 3a-bis — Git Commit+Push Policy (OBBLIGATORIA per utente Boschi404)
+### 3a-bis — Git Commit+Push Policy (OBBLIGATORIA)
 
 L'utente vuole commit+push dopo ogni modifica riuscita. Il loop lo codifica così:
 

@@ -1,8 +1,8 @@
 ---
-tags: [prometheus-engine, utente, preferenze, boschi404]
+tags: [prometheus-engine, utente, preferenze, configurabile]
 ---
 
-# Preferenze Utente — Boschi404
+# Preferenze Utente — Template Configurabile
 
 Queste preferenze sono codificate nel loop agentico.
 

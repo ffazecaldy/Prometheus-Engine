@@ -166,7 +166,7 @@ MIT — vedi [LICENSE](LICENSE)
 
 ## 🏆 Credits
 
-Creato da **ffazecaldy** (@Boschi404) con Hermes Agent (Nous Research).
+Creato da **ffazecaldy** con Hermes Agent (Nous Research).
 
 ---
 
