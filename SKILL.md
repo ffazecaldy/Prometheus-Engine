@@ -1,7 +1,7 @@
 ---
 name: prometheus-engine
 description: "Always-on autonomous agentic loop: prompt enhancement → deep research → massive scatter-gather (up to 100 subagents) → streaming quality gate (immediate retry on arrival) → self-learning iteration. Autonomous in execution, collaborative in mutation. Auto-activates on EVERY programming-mode prompt."
-version: 5.3.0
+version: 5.4.0
 author: Prometheus Engine Community
 repository: https://github.com/ffazecaldy/Prometheus-Engine
 tags: [prometheus, engine, auto, workflow, multi-agent, quality, research, iteration, scatter-gather, streaming-gather, self-learning, autonomous-loop, meta-scaling, quick-start]
@@ -1338,6 +1338,8 @@ PROJECT ISOLATION RULES:
 
 **Implementazione pratica:** nel salvare una memory entry, includi il nome del progetto (dal cwd o dal git remote) se la lezione è progetto-specifica. Nel recall, filtra per progetto prima di applicare.
 
+**Implementato da Phase 4g (Dynamic Knowledge Expansion):** il file `./.hermes/local-patterns.md` è la memoria locale del progetto corrente. Il file `~/.hermes/references/dynamic-patterns.md` è la memoria globale, filtrata per tecnologia. Vedi Phase 4g per il meccanismo completo di split Local/Global.
+
 #### Guardrail 7 — Human Checkpoint (no fully autonomous skill mutation)
 
 Il modello NON può creare, modificare, o cancellare skill in modo completamente autonomo. Sempre:
@@ -1409,9 +1411,11 @@ SELF-LEARNING LOG (nel final report di ogni sessione):
 
 ---
 
-### 4g — Dynamic Knowledge Expansion (post 3+ retry)
+### 4g — Dynamic Knowledge Expansion (post 3+ retry) — Local/Global Split
 
 **Trigger:** un task ha richiesto **3 o più retry** per passare il quality gate. Questo indica che c'è conoscenza da catturare — un'API deprecata, un pattern che non funziona più, un gap di contesto.
+
+**⚠️ Regola fondante (anti-overfitting):** non tutta la conoscenza è globale. Salvare pattern specifici di un progetto come globali = Context Contamination = il sistema diventa inutilizzabile su progetti diversi.
 
 ```
 DYNAMIC KNOWLEDGE EXPANSION:
@@ -1420,27 +1424,42 @@ DYNAMIC KNOWLEDGE EXPANSION:
    ├─ Perché è fallito? (deprecazione, breaking change, gap contesto)
    └─ Qual è la soluzione? (il pattern specifico che ha funzionato)
 
-2. Scrivi/aggiorna references/dynamic-patterns.md:
-   ├─ Formato: ## [Tecnologia] — [Problema] (es. "## React 19 — use() sostituisce useContext per Promise")
-   ├─ Contenuto: causa + soluzione + esempio di codice
-   ├─ Timestamp + conteggio occorrenze
-   └─ Prefisso [Auto] per distinguere dai reference manuali
+2. Classifica lo SCOPE e scrivi nel file corretto:
+   ├─ 🌍 SCOPE GLOBALE (Tecnologia pura — Linguaggi, Framework, API pubbliche):
+   │   ├─ Criterio: la lezione vale per QUALSIASI progetto che usa quella tecnologia
+   │   ├─ Esempi: "React 19 — use() sostituisce useContext per Promise"
+   │   │          "Stripe API v2024 — il parametro 'amount' ora è in centesimi"
+   │   │          "Python 3.12 — typing.TypeAlias sostituisce TypeAlias da typing_extensions"
+   │   └─ Scrivi in ~/.hermes/references/dynamic-patterns.md
+   │
+   ├─ 📁 SCOPE LOCALE (Architettura di progetto — Convenzioni, struttura, wrapper interni):
+   │   ├─ Criterio: la lezione vale SOLO per questo specifico progetto
+   │   ├─ Esempi: "In questo progetto, le route FastAPI vanno in routers/ non api/"
+   │   │          "Usare sempre il custom wrapper get_db_session(), mai Session() diretta"
+   │   │          "I validatori Pydantic vanno in app/validators.py, non nei models"
+   │   └─ Scrivi in ./.hermes/local-patterns.md (crealo se non esiste)
+   │
+   └─ ⚠️ DEFAULT: quando sei in dubbio → LOCALE. Un pattern locale iniettato in un altro
+      progetto è rumore innocuo. Un pattern globale iniettato dove non serve è danno.
 
 3. Carica automaticamente nei task futuri (Tier 2-4):
-   ├─ All'inizio di Phase 1 (decomposizione), leggi dynamic-patterns.md
-   ├─ Se esistono regole rilevanti per il goal_type corrente, iniettale nel context dei subagenti
-   └─ Nessun overhead aggiuntivo: 1 read_file all'inizio del batch, <500 token
+   ├─ Leggi SEMPRE ./.hermes/local-patterns.md (se esiste nel progetto corrente)
+   ├─ Leggi ~/.hermes/references/dynamic-patterns.md SOLO per le tecnologie citate nel goal
+   │   └─ Esempio: goal contiene "React" → carica solo le entry React da dynamic-patterns.md
+   └─ Inietta le regole rilevanti come extra_criteria nei context dei subagenti
 
-4. Guardrail di proliferazione (ereditato da Guardrail 5):
-   ├─ Max 50 entry in dynamic-patterns.md
-   ├─ Entry più vecchie con <2 occorrenze → archiviate in dynamic-patterns.archive.md
-   ├─ Se un goal_type ha 3+ entry con lo stesso pattern → proponi all'utente di creare una skill dedicata (Guardrail 4)
+4. Guardrail di proliferazione (ereditato da Guardrail 5 + Guardrail 6):
+   ├─ File GLOBALE: max 50 entry, archivio automatico delle più vecchie con <2 occorrenze
+   ├─ File LOCALE: nessun limite (cresce col progetto, muore col progetto)
+   ├─ Se un goal_type ha 3+ entry → proponi all'utente di creare una skill dedicata (Guardrail 4)
    └─ Formato sempre [Auto] — NON modificare SKILL.md senza consenso (Guardrail 7)
 ```
 
-> **Coerenza con Guardrail 7:** `dynamic-patterns.md` è **conoscenza catturata**, non comportamento modificato. Scrivere in questo file NON richiede checkpoint umano perché non altera il flusso del loop. La distinzione è: SKILL.md = comportamento → serve OK; `references/*.md` = documentazione → autonomo. Le entry sono firmate `[Auto]` per distinguerle dai reference creati manualmente.
+> **Coerenza con Guardrail 6 (Project Isolation):** questo meccanismo è l'implementazione diretta del guardrail. La memoria locale (`local-patterns.md`) è specifica del repository corrente e viene letta solo quando si lavora in quel progetto. Quella globale (`dynamic-patterns.md`) è filtrata per tecnologia e non contiene convenzioni di progetto.
 
-> **Integrazione con Phase 1 (decomposizione):** prima di decomporre, leggi `references/dynamic-patterns.md`. Se contiene regole per le tecnologie menzionate nel goal, iniettale come `extra_criteria` nei task relativi. Esempio: goal contiene "React" → controlla se dynamic-patterns ha entry React → inietta "In React 19, usa X invece di Y" nel context del subagente.
+> **Coerenza con Guardrail 7:** entrambi i file sono **conoscenza catturata**, non comportamento modificato. Scrivere in questi file NON richiede checkpoint umano. Le entry sono firmate `[Auto]` per distinguerle dai reference creati manualmente.
+
+> **Integrazione con Phase 1 (decomposizione):** prima di decomporre, leggi `./.hermes/local-patterns.md` (sempre) + `~/.hermes/references/dynamic-patterns.md` (filtrato per tecnologia). Inietta le regole come `extra_criteria` nei task.
 
 ---
 
@@ -1693,7 +1712,10 @@ Aggiungi al Pre-Flight Checklist (Phase 2c):
    ├─ Modulo con dipendenze → import check + type stub (verification-strategies)
    └─ Documentazione/config → syntax-only check
 □ So quale skill di verification usare se pytest non disponibile?
-□ **Dynamic patterns caricati?** Ho letto references/dynamic-patterns.md e iniettato regole rilevanti nei context dei subagenti (Phase 4g)?
+□ **Dynamic patterns caricati?** (Phase 4g — Local/Global Split):
+   ├─ LOCAL: Ho letto ./.hermes/local-patterns.md (se esiste nel progetto corrente)?
+   ├─ GLOBAL: Ho letto ~/.hermes/references/dynamic-patterns.md e FILTRATO per le tecnologie del goal?
+   └─ Entrambi iniettati come extra_criteria nei subagenti? (LOCAL sempre, GLOBAL solo tecnologie matchate)
 □ Ho un piano di code review post-batch?
 □ Ho fatto il recall dei pattern precedenti (Phase 4b)?
 □ Se Tier 3+: il piano (Phase 0.5) è stato scritto e letto?
