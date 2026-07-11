@@ -595,6 +595,8 @@ def quality_check(
         # Check 5: Security AUTO — hardcoded secrets + SQL injection (Phase 3d-ter)
         # Esclude file di test e mocks dal check hardcoded secrets
         _is_test_file = bool(re.search(r'(/tests?/|/mocks?/|^test_|_test\.py$)', filepath))
+        has_secret = False   # inizializzato sempre, anche per test file
+        nosec_bypassed = 0
         if filepath.endswith((".py", ".js", ".ts", ".jsx", ".tsx")):
             try:
                 with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
@@ -611,6 +613,7 @@ def quality_check(
                             if re.search(r"\b(api_key|password|secret|token)\s*=\s*['\"]", line, re.IGNORECASE):
                                 # Skip if # nosec comment on this line
                                 if re.search(r"#\s*nosec", line):
+                                    nosec_bypassed += 1
                                     continue
                                 nearby = "\n".join(lines[max(0,i-1):min(len(lines),i+4)])
                                 if not re.search(r"(getenv|os\.environ|process\.env\.)", nearby):
@@ -625,9 +628,13 @@ def quality_check(
                 ))
                 if has_raw_sql:
                     failures.append(f"{filepath}: possibile SQL injection — usa query parametrizzate o ORM")
-                checks.append({"file": filepath, "check": "security", "passed": not has_secret and not has_raw_sql})
-            except Exception:
-                checks.append({"file": filepath, "check": "security", "passed": True, "skipped": "read error"})
+                checks.append({
+                    "file": filepath, "check": "security",
+                    "passed": not has_secret and not has_raw_sql,
+                    **({"nosec_bypassed": nosec_bypassed} if nosec_bypassed else {})
+                })
+            except Exception as e:
+                checks.append({"file": filepath, "check": "security", "passed": False, "error": f"security check failed: {str(e)[:80]}"})
 
     return {
         "passed": len(failures) == 0,

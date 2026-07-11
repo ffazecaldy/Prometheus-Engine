@@ -1096,7 +1096,7 @@ SECURITY AUTO CHECK (eseguito dopo Phase 3d e 3d-bis, prima del quality gate):
    └─ Se trovato → ⚠️ WARNING nel log (non blocca, potrebbe essere intenzionale)
 ```
 
-> **Coerenza con quality_check.py:** queste regex vanno aggiunte al modulo `prometheus_engine.py` → `quality_check()` come check aggiuntivi. Il file `scripts/prometheus_engine.py` va aggiornato per eseguire questi controlli dopo il syntax check esistente.
+> **⚠️ Importante — questo è un primo filtro automatico, NON un SAST completo.** Le regex rilevano i pattern più comuni (assegnazione diretta di stringhe, f-string SQL) ma non coprono: secret costruiti su più righe, chiavi formato AWS (`AKIA...`), file `.env`/`.yaml` con secret in chiaro, SQL injection costruita incrementalmente. Per progetti production-critical, integra un vero secret-scanner (es. `detect-secrets`, `truffleHog`) o SAST (es. `bandit`, `semgrep`).
 
 ### 3e — Context Window Protection (CRITICO per Tier 3-4)
 
@@ -1709,7 +1709,9 @@ Quando un task non converge, seguo questa scala:
 ### Quality Summary
 ├─ ✅ Task completati: X/Y
 ├─ ⚠️ Task con gap accettati: X
-└─ ❌ Task escalati all'utente: X (se applicabile)
+├─ ❌ Task escalati all'utente: X (se applicabile)
+├─ 🛡️ Security: X violazioni bloccate, X #nosec bypass
+└─ 📊 FPR medio: XX%
 
 ### Self-Feedback
 ├─ Autovalutazione: XX/100
