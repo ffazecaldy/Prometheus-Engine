@@ -94,6 +94,20 @@ def detect_band(prompt: str) -> str:
     if not words or all(not w.isalnum() or w.isdigit() for w in words):
         return "media"
 
+    # HARD TRIGGER: attivazione esplicita → forza banda media (Tier 2) anche per task semplici
+    _activation_patterns = [
+        r"\battiva\s+prometheus",
+        r"\bmodalità\s+prometheus",
+        r"\busa\s+prometheus",
+        r"\bprometheus\s+engine",
+        r"\bprometheus\s+mode",
+        r"\bprometheus\s+on",
+        r"\battiva\s+l['\"]?\s*engine\b",
+        r"\battiva\s+engine\b",
+    ]
+    if any(re.search(patt, p) for patt in _activation_patterns):
+        return "media"
+
     # Conta indicatori per ogni banda
     scores = {"bassa": 0, "media": 0, "alta": 0, "estrema": 0}
 

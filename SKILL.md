@@ -1,7 +1,7 @@
 ---
 name: prometheus-engine
 description: "Always-on autonomous agentic loop: prompt enhancement → deep research → massive scatter-gather (up to 100 subagents) → streaming quality gate (immediate retry on arrival) → self-learning iteration. Autonomous in execution, collaborative in mutation. Auto-activates on EVERY programming-mode prompt."
-version: 5.5.3
+version: 5.5.4
 author: Prometheus Engine Community
 repository: https://github.com/ffazecaldy/Prometheus-Engine
 tags: [prometheus, engine, auto, workflow, multi-agent, quality, research, iteration, scatter-gather, streaming-gather, self-learning, autonomous-loop, meta-scaling, quick-start]
@@ -27,14 +27,14 @@ This skill transforms me into an autonomous agentic system that:
 
 Se due sezioni descrivono policy alternative per lo stesso momento del flusso, **vince la più restrittiva** (sicurezza > autonomia). Ordine di precedenza:
 
-1. ⚖️ **Regola di Precedenza** (questa sezione) — sempre attiva
-2. 🛡️ **Guardrail (Phase 4f)** — proteggono il sistema da se stesso
-3. 🪜 **Escalation Ladder (Phase 7)** — l'utente decide su gap sotto soglia
-4. 🧠 **Context Protection (Phase 3e)** — previene overflow/saturazione
-5. ✨ **Quality Gate (Phase 3a)** — valuta e ritenta
-6. 📡 **Scatter (Phase 2a)** — dispatch parallelo
+0. 🗣️ **Attivazione esplicita dell'utente** ("attiva prometheus" ecc.) — vince SEMPRE su detect_band() e sulla classificazione automatica della banda (4-Band Filter)
+1. 🛡️ **Guardrail (Phase 4f)** — proteggono il sistema da se stesso
+2. 🪜 **Escalation Ladder (Phase 7)** — l'utente decide su gap sotto soglia
+3. 🧠 **Context Protection (Phase 3e)** — previene overflow/saturazione
+4. ✨ **Quality Gate (Phase 3a)** — valuta e ritenta
+5. 📡 **Scatter (Phase 2a)** — dispatch parallelo
 
-**Esempio concreto:** se Phase 3a dice "accetta task sotto soglia" ma Phase 7 dice "escala all'utente" → vince Phase 7. Se Phase 2a dice "dispatcha 50 subagenti in streaming" ma Phase 3e dice "max 20-25 in-flight" → vince Phase 3e.
+**Esempio concreto:** se Phase 3a dice "accetta task sotto soglia" ma Phase 7 dice "escala all'utente" → vince Phase 7. Se Phase 2a dice "dispatcha 50 subagenti in streaming" ma Phase 3e dice "max 20-25 in-flight" → vince Phase 3e. Se l'utente dice "attiva prometheus" ma detect_band() classifica "bassa" → vince l'attivazione esplicita (livello 0).
 
 ### ⚠️ REGOLA FONDAMENTALE — Dynamic Subagent Allocation
 
@@ -193,7 +193,28 @@ Quando non attiva:
 
 ## 🎯 4-Band Filter — Primo Checkpoint (PRIMA di tutto)
 
-**PRIMA di caricare il resto della skill**, categorizza la richiesta in 4 bande.
+**PRIMA di classificare la banda, controlla se c'è un'attivazione ESPLICITA:**
+
+```
+HARD TRIGGER CHECK (esegui SEMPRE prima di detect_band()):
+
+Se il prompt contiene una di queste frasi (case-insensitive, anche parziali):
+  "attiva prometheus", "modalità prometheus", "usa prometheus",
+  "prometheus engine", "prometheus mode", "prometheus on", "attiva l'engine"
+  → explicit_activation = True
+  → SKILL.md viene caricata SEMPRE, indipendentemente dal risultato di detect_band()
+  → Tier minimo forzato: 2 (anche se il task sembra banda bassa)
+  → NOTA: l'utente può finire in Tier 1 SOLO se lo specifica esplicitamente lui stesso,
+    es. "attiva prometheus ma è solo un fix veloce"
+  → Questo bypassa la Regola di Risparmio Token per la banda bassa
+
+Se il prompt NON contiene un'attivazione esplicita:
+  → Procedi normalmente con detect_band() come oggi (classificazione automatica)
+```
+
+> **Perché PRIMA di detect_band()?** Un'istruzione esplicita dell'utente ("attiva X") è un comando diretto, non un segnale ambiguo da interpretare — deve avere priorità sulla stima automatica della complessità.
+
+**PRIMA di caricare il resto della skill**, categorizza la richiesta in 4 bande (se non c'è hard trigger).
 Questo determina QUANTO della skill attivare.
 
 ```
