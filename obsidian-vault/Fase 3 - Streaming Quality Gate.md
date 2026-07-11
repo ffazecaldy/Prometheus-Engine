@@ -1,5 +1,5 @@
 ---
-tags: [prometheus-engine, fase-3, quality-gate, streaming, security, execution]
+tags: [prometheus-engine, fase-3, quality-gate, streaming, security, execution, git]
 ---
 
 # Fase 3 — Streaming Quality Gate
@@ -19,10 +19,12 @@ while goal_not_achieved:
     │
     ├─ if score >= threshold:
     │   ├─ ✅ tasks_completed.append(X)
-    │   └─ GIT CHECKPOINT: add + commit + push (file esclusivi)
+    │   └─ GIT CHECKPOINT: commit locale sempre, push condizionale
     │
     ├─ if score < threshold AND iteration < max_iterations:
-    │   ├─ ❌ Retry IMMEDIATO con feedback
+    │   ├─ if retry_count >= 4:
+    │   │   └─ ⚠️ ESCALATION IMMEDIATA → Phase 7
+    │   └─ else: retry immediato
     │
     ├─ if iteration >= max_iterations:
     │   └─ ⚠️ Escalation a Phase 7 (NON accettare automaticamente)
@@ -30,35 +32,22 @@ while goal_not_achieved:
     └─ if ALL tasks done → 🎉 GOAL ACHIEVED
 ```
 
-## 3a-ter — Actor-Critic (solo dopo 3+ retry)
+## 3a-bis — Git Commit+Push Policy (condizionale)
 
-Distingue tra task difficile e problema strutturale. Max 1 tentativo. Poi escalation.
+**Commit locale: SEMPRE.** Push: condizionale su preferenza utente.
 
-## 3d — Validazione File Fisici (OBBLIGATORIA Tier 2-4)
-
-File esiste? Non vuoto? No stub/TODO/pass? Sintassi ok? File binario? → ❌ = retry.
-
-## 3d-bis — Execution Reality Check
-
-Per script/test sandboxabili: esegui, usa stderr come feedback del retry. Max 3 tentativi.
+- **`push_mode = "per_task"` (default):** push dopo ogni task superato
+- **`push_mode = "batch_end"`:** commit locali per task, push unico a fine batch
+- Rilevamento: da prompt utente o clarification interview
+- **CI/CD awareness:** se rileva CI, segnala e propone batch_end
 
 ## 3d-ter — Security Shield AUTO
 
-Vedi [[Phase 3d-ter - Security Shield AUTO]]. Regex check bloccante per tutti i Tier.
+Vedi [[Phase 3d-ter - Security Shield AUTO]]. Regex bloccante. Esclude `/tests/` e `/mocks/`. Bypass `# nosec`.
 
 ## Adaptive Threshold Tuning (solo prossimo batch)
 
 Se FPR < 60% → prossimo batch con doppia granularità. **Mai cambiare granularità ai task già in volo.**
-
-## Git Commit+Push Policy
-
-- File ESCLUSIVI → commit + push immediato
-- File CONDIVISI → solo via Assembly Task post-batch
-- DRY CHECK (Tier 3-4) nell'Assembly Task
-
-## Context Window Protection
-
-⚠️ **Critico per Tier 3-4**: dispatch a ondate (warning: oltre 20-25), summary compressi, can_dispatch() preventivo.
 
 ## Collegamenti
 - [[Fase 2 - Autonomous Scatter]] — Da dove arrivano i risultati
