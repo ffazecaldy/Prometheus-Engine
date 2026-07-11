@@ -87,6 +87,8 @@ def detect_band(prompt: str) -> str:
     Returns:
         Una di: "bassa", "media", "alta", "estrema".
     """
+    if prompt is None:
+        return "media"
     p = prompt.lower().strip()
     words = p.split()
 
