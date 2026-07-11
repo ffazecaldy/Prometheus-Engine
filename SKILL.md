@@ -1,13 +1,15 @@
 ---
 name: prometheus-engine
-description: "Always-on autonomous agentic loop: prompt enhancement → deep research → massive scatter-gather (up to 100 subagents) → streaming quality gate (immediate retry on arrival) → self-learning iteration. Autonomous in execution, collaborative in mutation. Auto-activates on EVERY programming-mode prompt."
-version: 5.5.5
+description: "🔥 ATTENZIONE: attivazione ESCLUSIVA su comando 'attiva prometheus' / 'prometheus engine' / 'prometheus mode'. Se l'utente scrive queste frasi, la skill DEVE essere caricata SEMPRE, indipendentemente dalla complessità del task. NESSUNA ESCLUSIONE per task semplici o 'bassa' priorità. Quando attiva, gestisce in autonomia progetti di coding: loop agentico, 100 subagenti paralleli, quality gate, security shield, self-learning. Nome comando breve: 'prometheus-engine'."
+version: 5.5.6
 author: Prometheus Engine Community
 repository: https://github.com/ffazecaldy/Prometheus-Engine
 tags: [prometheus, engine, auto, workflow, multi-agent, quality, research, iteration, scatter-gather, streaming-gather, self-learning, autonomous-loop, meta-scaling, quick-start]
 ---
 
 # Prometheus Engine — Autonomous Loop Engine
+
+> 🔥 **PROMETHEUS ATTIVO** — Skill caricata, Tier in rilevamento...
 
 ## Philosophy
 
@@ -218,7 +220,7 @@ Se il prompt NON contiene un'attivazione esplicita:
 Questo determina QUANTO della skill attivare.
 
 ```
-BANDA BASSA → Tier 1, NON caricare SKILL.md completo, esecuzione diretta
+BANDA BASSA → Tier 1, esecuzione diretta, saltare fasi 1-11 del loop
 BANDA MEDIA → Tier 2, carica skill, max 1-5 subagenti
 BANDA ALTA → Tier 3, carica skill completa, 5-30 subagenti
 BANDA ESTREMA → Tier 4, carica tutto, 30-100 subagenti, orchestrator
@@ -226,7 +228,7 @@ BANDA ESTREMA → Tier 4, carica tutto, 30-100 subagenti, orchestrator
 
 | Banda | Esempi | Tier | Carica skill? | Subagenti | Loop? |
 |-------|--------|------|---------------|-----------|-------|
-| **Bassa** | typo, fix bug, cambia colore, rinomina | 1 | ❌ No (risparmia 30KB) | 0 | No, diretto |
+| **Bassa** | typo, fix bug, cambia colore, rinomina | 1 | ✅ Skill già caricata. Skip loop (intervento diretto). | 0 | No, diretto |
 | **Media** | aggiungi endpoint, crea funzione, test, refactoring | 2 | ✅ Sì | 1-5 | 1 iterazione |
 | **Alta** | sistema, modulo auth, API completa, multi-file feature | 3 | ✅ Sì | 5-30 | ∞ converge |
 | **Estrema** | full-stack, e-commerce, MVP da zero, 50+ file | 4 | ✅ Sì | 30-100 | ∞ + orchestrator |
@@ -240,7 +242,7 @@ from prometheus_engine import detect_band, band_to_config
 
 band = detect_band("correggi typo nel file main.py")  # → "bassa"
 config = band_to_config(band)
-# config = {"tier": 1, "load_skill": False, "subagents": 0, ...}
+# config = {"tier": 1, "load_skill": True, "subagents": 0, "skip_loop": True, ...}
 
 band = detect_band("crea piattaforma e-commerce full-stack")  # → "estrema"
 config = band_to_config(band)
@@ -251,7 +253,7 @@ config = band_to_config(band)
 
 ```
 SE banda == "bassa":
-  └─ NON caricare SKILL.md (30KB = ~8000 token risparmiati)
+  └─ Saltare fasi 1-11 del loop (esecuzione diretta, risparmia ~8000 token)
   └─ Esegui direttamente: leggi file, modifica, commit, push
   └─ Nessun loop, nessun subagente, nessun piano
 
