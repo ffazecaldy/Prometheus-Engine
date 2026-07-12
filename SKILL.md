@@ -1,7 +1,7 @@
 ---
 name: prometheus-engine
 description: "🔥 ATTENZIONE: attivazione ESCLUSIVA su comando 'attiva prometheus' / 'prometheus engine' / 'prometheus mode'. Se l'utente scrive queste frasi, la skill DEVE essere caricata SEMPRE, indipendentemente dalla complessità del task. NESSUNA ESCLUSIONE per task semplici o 'bassa' priorità. Quando attiva, gestisce in autonomia progetti di coding: loop agentico, 100 subagenti paralleli, quality gate, security shield, self-learning. Nome comando breve: 'prometheus-engine'."
-version: 5.5.8
+version: 5.5.9
 author: Prometheus Engine Community
 repository: https://github.com/ffazecaldy/Prometheus-Engine
 tags: [prometheus, engine, auto, workflow, multi-agent, quality, research, iteration, scatter-gather, streaming-gather, self-learning, autonomous-loop, meta-scaling, quick-start]
@@ -1795,6 +1795,9 @@ Quando un task non converge, seguo questa scala:
 
 ## Phase 8 — Final Report + Self-Learning
 
+**🔴 OBBLIGATORIO: dopo ogni task completato (anche fallito), DEVI produrre il report seguente.**
+NON saltarlo mai. NON rispondere solo con "fatto"/"completato". L'utente deve vedere le metriche (e serve a te per l'apprendimento).
+
 ### 8a — Report Strutturato
 
 ```
@@ -1806,13 +1809,14 @@ Quando un task non converge, seguo questa scala:
 ├─ Convergenza: X iterazioni
 ├─ Qualità media finale: X.Y/10
 ├─ Streaming retry: X immediati, Y batch
+├─ 🛡️ Security: X violazioni bloccate, X #nosec bypass
 └─ Durata totale: X min
 
 ### Self-Learning
 ├─ Pattern salvato: decomposizione [pattern] (funziona XX% first-pass)
 ├─ Lesson: [lezione appresa]
 ├─ Calibrazione: [modifiche ai parametri]
-└─ Skill: prometheus-engine v5.5.1
+└─ Skill: prometheus-engine v5.5.8
 
 ### Quality Summary
 ├─ ✅ Task completati: X/Y
@@ -1821,9 +1825,10 @@ Quando un task non converge, seguo questa scala:
 ├─ 🛡️ Security: X violazioni bloccate, X #nosec bypass
 └─ 📊 FPR medio: XX%
 
-### Self-Feedback
+### Self-Feedback (autovalutazione)
 ├─ Autovalutazione: XX/100
-└─ Note: [punti di forza e miglioramento]
+├─ Note: [punti di forza e miglioramento]
+└─ 🔥 PROMETHEUS — Task completato
 ```
 
 ### 8b — Self-Learning Actions
