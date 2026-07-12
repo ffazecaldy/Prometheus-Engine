@@ -1,7 +1,7 @@
 ---
 name: prometheus-engine
 description: "🔥 ATTENZIONE: attivazione ESCLUSIVA su comando 'attiva prometheus' / 'prometheus engine' / 'prometheus mode'. Se l'utente scrive queste frasi, la skill DEVE essere caricata SEMPRE, indipendentemente dalla complessità del task. NESSUNA ESCLUSIONE per task semplici o 'bassa' priorità. Quando attiva, gestisce in autonomia progetti di coding: loop agentico, 100 subagenti paralleli, quality gate, security shield, self-learning. Nome comando breve: 'prometheus-engine'."
-version: 5.5.6
+version: 5.5.7
 author: Prometheus Engine Community
 repository: https://github.com/ffazecaldy/Prometheus-Engine
 tags: [prometheus, engine, auto, workflow, multi-agent, quality, research, iteration, scatter-gather, streaming-gather, self-learning, autonomous-loop, meta-scaling, quick-start]
@@ -189,6 +189,12 @@ Questa skill si attiva quando l'utente dice qualcosa che indica siamo in **modal
 - Richieste che coinvolgono codice, architettura, sistemi, API, database
 - Task multi-file o multi-componente
 - Qualsiasi richiesta che richiederebbe 3+ step
+
+**Inoltre, la skill si attiva in DEBUG MODE** quando l'utente riporta un errore su un output precedente:
+- "non funziona", "c'è un errore", "c'è un bug", "non va", "debug"
+- "fixa questo errore", "correggi questo", "sistema questo errore"
+- Output di terminale contenente "Traceback" o "Error:" incollato dall'utente
+- In questo caso → debug_mode = True → si salta il 4-Band Filter e si entra direttamente in analisi errore (Phase 3a-ter)
 
 Quando non attiva:
 - Domande semplici, chat informale, lettura file, domande su Hermes stesso
@@ -978,8 +984,48 @@ ACTOR-CRITIC CHECK (solo se retry_count >= 3 per lo stesso task):
    Se fallisce ancora → escalation Phase 7 (senza altri retry).
 ```
 
-> **Coerenza:** questo meccanismo NON sostituisce il quality gate (che resta per ogni task). È un trigger di secondo livello che scatta solo dopo 3+ retry, colmando il vuoto tra "ritento" e "escalo".
+### 3a-quater — User-Reported Error Trigger (Debug Mode)
+
+**Si attiva quando l'utente segnala un errore** dopo che l'engine ha prodotto output. L'errore può essere un Traceback incollato, una frase di debugging, o un "non funziona".
+
 ```
+USER-REPORTED ERROR TRIGGER (debug_mode = True):
+
+1. Rilevamento: l'utente dice "non funziona", "c'è un errore", "debug", 
+   incolla un Traceback/Error:, o chiede "fixa/sistema/correggi" un output precedente
+
+2. Azione:
+   ├─ Salta il 4-Band Filter (debug_mode bypassa la classificazione)
+   ├─ Salta la decomposizione (Phase 1) e lo scatter (Phase 2) — 
+   │   l'obiettivo è FIXARE, non costruire da zero
+   ├─ Entra direttamente in fase di DIAGNOSI:
+   │   ├─ Leggi l'errore/stderr fornito dall'utente
+   │   ├─ Se l'utente non ha fornito stderr ma dice solo "non funziona":
+   │   │   ├─ Esegui il codice/app incriminata (se sandboxabile) per catturare lo stderr
+   │   │   └─ Se non sandboxabile → chiedi all'utente di incollare l'errore
+   │   ├─ Analizza lo stderr → estrai: file, linea, tipo errore, messaggio
+   │   └─ Mappa l'errore al file/modulo che l'ha prodotto
+
+3. Fix:
+   ├─ Applica il fix specifico basato sull'analisi dello stderr
+   ├─ Esegui nuovamente il codice per verificare che l'errore sia risolto
+   ├─ Se il fix risolve → ✅ commit + push (segui push_mode, Phase 3a-bis)
+   └─ Se il fix NON risolve dopo 3 tentativi → escalation Phase 7
+
+4. Apprendimento (Phase 4g):
+   ├─ Se il debug ha richiesto 3+ tentativi → estrai la regola risolutiva
+   ├─ Salva in ~/.hermes/references/dynamic-patterns.md [Auto]
+   └─ La lezione vale per TUTTI i progetti (è un errore tecnico oggettivo)
+
+5. Uscita:
+   ├─ Se l'errore era l'unico problema → task originale è completato ✅
+   └─ Se l'errore ha rivelato un problema più profondo → proponi all'utente
+      di riattivare il ciclo completo (attiva prometheus, rifai X)
+```
+
+> **Coerenza con Phase 3a-ter:** il Debug Mode è un'estensione dell'Actor-Critic. Dove l'Actor-Critic analizza fallimenti interni (retry), il Debug Mode analizza errori riportati dall'esterno (utente). Entrambi condividono lo stesso fine: non ritentare alla cieca, ma diagnosticare. Se debug_mode fallisce 3+ tentativi → Actor-Critic (Phase 3a-ter) prende il controllo → escalation Phase 7.
+
+> **Coerenza:** questo meccanismo NON sostituisce il quality gate (che resta per ogni task). È un trigger di secondo livello che scatta solo dopo 3+ retry, colmando il vuoto tra "ritento" e "escalo".
 
 ### 3a-bis — Git Commit+Push Policy (condizionale su preferenza utente)
 
