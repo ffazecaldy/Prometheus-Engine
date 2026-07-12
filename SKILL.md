@@ -1,7 +1,7 @@
 ---
 name: prometheus-engine
 description: "🔥 ATTENZIONE: attivazione ESCLUSIVA su comando 'attiva prometheus' / 'prometheus engine' / 'prometheus mode'. Se l'utente scrive queste frasi, la skill DEVE essere caricata SEMPRE, indipendentemente dalla complessità del task. NESSUNA ESCLUSIONE per task semplici o 'bassa' priorità. Quando attiva, gestisce in autonomia progetti di coding: loop agentico, 100 subagenti paralleli, quality gate, security shield, self-learning. Nome comando breve: 'prometheus-engine'."
-version: 5.5.7
+version: 5.5.8
 author: Prometheus Engine Community
 repository: https://github.com/ffazecaldy/Prometheus-Engine
 tags: [prometheus, engine, auto, workflow, multi-agent, quality, research, iteration, scatter-gather, streaming-gather, self-learning, autonomous-loop, meta-scaling, quick-start]
@@ -1894,6 +1894,19 @@ L'E2E test copre:
 ## Phase 10 — Skill Ecosystem Integration
 
 L'prometheus-engine non lavora nel vuoto. Queste skill complementari vanno caricate e riferite durante il loop:
+
+### ⚠️ Conflitti risolti — Skill superseded da prometheus-engine
+
+**Quando questa skill è caricata, sostituisce internamente le seguenti skill Hermes per evitare conflitti logici:**
+
+| Skill esterna | Sostituita da | Motivo |
+|--------------|--------------|--------|
+| `simplify-code` | **Assembly Task (Phase 3a-bis punto 6) + Clean Code (Phase 1d-bis)** | Simplify-code fa parallel 3-agent cleanup; Prometheus ha già DRY check nell'Assembly Task e Type Hints/SRP nei quality criteria |
+| `systematic-debugging` | **Debug Mode (Phase 3a-quater)** | Entrambi fanno root cause analysis su codice fallito. Debug Mode ha lo stesso flusso (analizza stderr → isola → fixa → verifica) ed è integrato col loop (Actor-Critic + escalation) |
+| `spike` | **Phase 6c (convergenza osservata) + Tier system** | Spike è "esperimento usa-e-getta". Prometheus usa lo stesso approccio: se un task non converge, cambia strategia (split, hint, ritenta). Non serve una skill separata |
+| `elysium-swarmloop` | **Loop Prometheus Engine (Phase 0-11 completo)** | Swarmloop ha lo stesso concept (scatter-gather, auto-loop, self-learning) ma meno struttura: manca di guardrail (10+), security shield, clean code, scaffolding adattivo, e Local/Global knowledge split |
+
+> **Nota:** le skill sopraelencate NON vanno caricate durante il loop. Se Hermes le carica automaticamente, prometheus-engine le ignora e usa i propri meccanismi interni. Le restanti skill in tabella sotto sono complementari e vanno caricate come descritto.
 
 ### Quando caricare quale skill
 
