@@ -1,7 +1,7 @@
 ---
 name: prometheus-engine
 description: "🔥 ATTENZIONE: attivazione ESCLUSIVA su comando 'attiva prometheus' / 'prometheus engine' / 'prometheus mode'. Se l'utente scrive queste frasi, la skill DEVE essere caricata SEMPRE, indipendentemente dalla complessità del task. NESSUNA ESCLUSIONE per task semplici o 'bassa' priorità. Quando attiva, gestisce in autonomia progetti di coding: loop agentico, 100 subagenti paralleli, quality gate, security shield, self-learning. Nome comando breve: 'prometheus-engine'."
-version: 5.5.9
+version: 5.6.0
 author: Prometheus Engine Community
 repository: https://github.com/ffazecaldy/Prometheus-Engine
 tags: [prometheus, engine, auto, workflow, multi-agent, quality, research, iteration, scatter-gather, streaming-gather, self-learning, autonomous-loop, meta-scaling, quick-start]
@@ -272,6 +272,42 @@ SE banda == "alta" o "estrema":
   └─ Carica SKILL.md completo
   └─ Loop completo con tutte le fasi
   └─ Self-learning attivo
+```
+
+---
+
+## 🏆 Modalità Qualità Massima (Quality-First Override)
+
+**Attivazione:** se l'utente dice "modalità qualità massima", "non risparmiare", "voglio il massimo", o dichiara che il costo non è un vincolo → `quality_first_mode = True` per l'intera sessione (persiste finché non disattivato esplicitamente).
+
+```
+QUANDO quality_first_mode = True, sovrascrivi questi default:
+
+├─ 4-Band Filter bypass (banda bassa salta SKILL.md)
+│     Default: attivo → QUALITY-FIRST: DISATTIVATO (carica sempre skill completa)
+
+├─ Quality threshold (soglia accettazione)
+│     Default: 7/10 → QUALITY-FIRST: 9/10
+
+├─ Adaptive Threshold Tuning
+│     Default: può unire task per risparmiare → QUALITY-FIRST: solo split, mai merge
+
+├─ "Chiediti se serve davvero N subagenti" (istinto di riduzione)
+│     Default: attivo → QUALITY-FIRST: sostituito da "chiediti se un subagente in
+│     più migliorerebbe la qualità — se sì, aggiungilo"
+
+├─ max_iterations (tetto sicurezza per retry)
+│     Default: auto_calc per tier → QUALITY-FIRST: triplica auto_calc
+
+└─ Accettazione gap documentato sotto soglia
+      Default: permessa via escalation → QUALITY-FIRST: escalation resta, ma
+      default proposto all'utente è "continua a migliorare", non "accetta com'è"
+
+CIÒ CHE NON CAMBIA:
+├─ Warning threshold 20-25 subagenti in-flight (Phase 3e) — non è risparmio,
+│  è protezione da saturazione context. Più subagenti senza controllo
+│  peggiorano la qualità, non la migliorano.
+└─ can_dispatch() resta obbligatorio prima di ogni batch (Regola di Precedenza)
 ```
 
 ## 📋 User Preferences — Configurable Template
@@ -1247,6 +1283,33 @@ CONTEXT BUDGET RULES:
 ```
 
 **Costo reale di ignorare questo:** se 100 summary saturano il context, Hermes comprime → perde contesto dei task già completati → retry duplicano task già fatti → altri summary → overflow di nuovo → death spiral → sessione crasha o produce qualità pessima.
+
+---
+
+### 3f — Global Re-Check Pass (solo in Quality-First Mode)
+
+Dopo l'Assembly Task, quando tutti i file individuali hanno già passato il quality gate a 9/10:
+
+```
+GLOBAL RE-CHECK:
+
+1. Subagente critico: leggere l'INTERO progetto assemblato
+   ├─ Non cercare bug che rompono l'esecuzione (già filtrati da 3d-bis e 3d-ter)
+   ├─ Cercare: codice non idiomatico, edge case non gestiti,
+   │  naming inconsistente tra file di subagenti diversi,
+   │  occasioni di refactoring, commenti mancanti, error handling troppo generico
+   └─ Report: 1-5 miglioramenti proposti (se trovati)
+
+2. Se ≥ 1 miglioramento non banale:
+   ├─ Dispatcha task di refactoring mirato per applicarlo
+   └─ Ripeti il Re-Check UNA volta dopo il refactoring
+      → Max 2 giri di Global Re-Check, poi accetta e passa a Phase 8
+
+3. Se Global Re-Check pulito (0 miglioramenti) o max giri raggiunto:
+   └─ ✅ Procedi a Phase 8 (Report finale)
+```
+
+> **Perché questa fase non basta alzare la soglia?** La soglia 9/10 valuta ogni file isolato. Il Global Re-Check guarda il progetto nel suo insieme — naming incrociato, edge case tra moduli, codice non idiomatico — cose che un check per-file non vede mai.
 
 ---
 
