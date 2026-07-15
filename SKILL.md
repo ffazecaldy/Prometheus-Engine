@@ -1,7 +1,7 @@
 ---
 name: prometheus-engine
 description: "🔥 ATTENZIONE: attivazione ESCLUSIVA su comando 'attiva prometheus' / 'prometheus engine' / 'prometheus mode'. Se l'utente scrive queste frasi, la skill DEVE essere caricata SEMPRE, indipendentemente dalla complessità del task. NESSUNA ESCLUSIONE per task semplici o 'bassa' priorità. Quando attiva, gestisce in autonomia progetti di coding: loop agentico, 100 subagenti paralleli, quality gate, security shield, self-learning. Nome comando breve: 'prometheus-engine'."
-version: 5.6.0
+version: 5.7.0
 author: Prometheus Engine Community
 repository: https://github.com/ffazecaldy/Prometheus-Engine
 tags: [prometheus, engine, auto, workflow, multi-agent, quality, research, iteration, scatter-gather, streaming-gather, self-learning, autonomous-loop, meta-scaling, quick-start]
@@ -1017,7 +1017,10 @@ ACTOR-CRITIC CHECK (solo se retry_count >= 3 per lo stesso task):
    └─ Task mal specificato → escalation immediata a Phase 7
 
 3. Limite: 1 SOLO tentativo di Actor-Critic per task.
-   Se fallisce ancora → escalation Phase 7 (senza altri retry).
+   Se fallisce ancora → due strade:
+   ├─ SE task eligible per Racing (Debug Mode, hot-fix, Quality-First):
+   │   └─ Vai a Phase 3a-quinques (Parallel Sandbox Racing) — 3-5 sandbox paralleli
+   └─ ALTRIMENTI → escalation Phase 7 (senza altri retry)
 ```
 
 ### 3a-quater — User-Reported Error Trigger (Debug Mode)
@@ -1062,6 +1065,56 @@ USER-REPORTED ERROR TRIGGER (debug_mode = True):
 > **Coerenza con Phase 3a-ter:** il Debug Mode è un'estensione dell'Actor-Critic. Dove l'Actor-Critic analizza fallimenti interni (retry), il Debug Mode analizza errori riportati dall'esterno (utente). Entrambi condividono lo stesso fine: non ritentare alla cieca, ma diagnosticare. Se debug_mode fallisce 3+ tentativi → Actor-Critic (Phase 3a-ter) prende il controllo → escalation Phase 7.
 
 > **Coerenza:** questo meccanismo NON sostituisce il quality gate (che resta per ogni task). È un trigger di secondo livello che scatta solo dopo 3+ retry, colmando il vuoto tra "ritento" e "escalo".
+
+### 3a-quinques — Parallel Sandbox Racing (sostituisce il retry sequenziale per task critici)
+
+**Invece di ritentare 4× in sequenza**, lancia 3-5 subagenti identici in sandbox paralleli. Il primo che passa tutti i gate deterministici vince.
+
+```
+PARALLEL SANDBOX RACING:
+
+1. QUANDO SI ATTIVA:
+   ├─ Debug Mode (Phase 3a-quater) con stderr disponibile
+   ├─ Task di hot-fix su produzione (Phase 7 escalation con urgenza)
+   └─ Quality-First Mode (Phase 3f) — facoltativo ma consigliato
+
+2. DISPATCH (invece di retry sequenziale):
+   ├─ Crea 3-5 sandbox identici (directory isolate, stesse dipendenze)
+   ├─ Ogni sandbox riceve LO STESSO task + STESSO stderr/fix_hint
+   ├─ MA con differenze minime: seed random diverso, temperatura 0.1-0.5,
+   │  o variante di prompt (es. "usa async/await" vs "non usare async")
+   └─ Tutti partono IN PARALLELO — nessuno aspetta
+
+3. VALIDAZIONE (ogni sandbox indipendentemente):
+   ├─ Non appena un sandbox completa il task:
+   │   ├─ Esegue i gate deterministici (Phase 3d, 3d-bis, 3d-ter)
+   │   └─ Se passa TUTTI i gate → segnala "PASS" al coordinatore
+   └─ Il coordinatore monitora tutti i sandbox in streaming
+
+4. VINCITORE:
+   ├─ Il PRIMO sandbox che segnala "PASS" → VINCE
+   │   ├─ Il suo output viene mergiato nel branch principale
+   │   ├─ Commit + push (segui push_mode, Phase 3a-bis)
+   │   └─ ✅ Task completato
+   ├─ TUTTI gli altri sandbox vengono immediatamente terminati
+   │   (risparmia token, non aspettare che finiscano)
+   └─ Se NESSUN sandbox passa entro il timeout (60s):
+        └─ ⚠️ Escalation a Phase 7 (tutti falliti)
+
+5. WORKTREE ISOLAMENTO:
+   ├─ Prima del dispatch, git worktree add .sandbox/<id>
+   ├─ Ogni sandbox scrive nel suo worktree (nessuna collisione su file)
+   ├─ Il vincente fa merge del worktree nel branch principale
+   └─ Gli altri worktree vengono cancellati (git worktree remove --force)
+
+6. COSTO:
+   ├─ 3-5 sandbox in parallelo = 3-5× il costo di un singolo task
+   ├─ MA: termina in secondi invece di minuti (retry sequenziale)
+   ├─ E: produce il codice migliore (selezione naturale tra varianti)
+   └─ Attivazione RACCOMANDATA solo per: Debug Mode, hot-fix, Quality-First
+```
+
+> **Coerenza con Phase 3a-ter (Actor-Critic):** il Racing sostituisce il retry_count >= 4 → escalation. Dove prima c'erano 4 tentativi sequenziali, ora ci sono 3-5 sandbox paralleli. Se tutti falliscono, l'escalation è immediata (nessun retry sprecato).
 
 ### 3a-bis — Git Commit+Push Policy (condizionale su preferenza utente)
 
